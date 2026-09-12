@@ -19,7 +19,32 @@ import { marked } from 'marked';
 import katex from 'katex';
 
 function renderMarkdownWithMath(text: string): string {
-  let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
+  // 1. Normalize LaTeX delimiters: \[ ... \] -> $$ ... $$, \( ... \) -> $ ... $
+  let processed = text
+    .replace(/\\\[([\s\S]*?)\\\]/g, '\n\n$$$$$1$$$$\n\n')
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+
+  // 2. Standalone metric equations fallback (auto-wrap if LLM outputs unwrapped formulas)
+  const lines = processed.split('\n');
+  let inCodeBlock = false;
+  const newLines = lines.map((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      return line;
+    }
+    if (!inCodeBlock && !trimmed.startsWith('$') && !trimmed.endsWith('$')) {
+      if (/^(SSIM|PSNR|MSE|FID|KID|LPIPS|CLIP|Aesthetic|PickScore)\s*[:=]/i.test(trimmed)) {
+        const cleaned = trimmed.replace(/\\\*/g, '*');
+        return `\n$$${cleaned}$$\n`;
+      }
+    }
+    return line;
+  });
+  processed = newLines.join('\n');
+
+  // 3. Render display math $$...$$
+  processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
     try {
       return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
     } catch {
@@ -27,6 +52,7 @@ function renderMarkdownWithMath(text: string): string {
     }
   });
 
+  // 4. Render inline math $...$
   processed = processed.replace(/(?<!\\)\$([^\$\n]+?)\$/g, (match, math) => {
     try {
       return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
@@ -169,11 +195,32 @@ image-evaluator --metrics arcface --image generated_face.png --reference real_fa
 \`\`\``;
   }
 
+  if (q.includes('ssim') && (q.includes('psnr') || q.includes('区别') || q.includes('对比'))) {
+    return `### SSIM 与 PSNR 计算机理与应用场景对比
+
+1. **SSIM (结构相似性指数, Structural Similarity Index):**
+$$\\text{SSIM}(x, y) = \\frac{(2\\mu_x \\mu_y + C_1)(2\\sigma_{xy} + C_2)}{(\\mu_x^2 + \\mu_y^2 + C_1)(\\sigma_x^2 + \\sigma_y^2 + C_2)}$$
+- 核心原理: 综合亮度、对比度与结构三分量统计特征，符合人类视觉系统 (HVS) 特性。
+- 取值范围: $[-1, 1]$，值越接近 1 代表两图越相似。
+- 适用场景: 图像生成、风格迁移与复杂纹理保真度评估。
+
+2. **PSNR (峰值信噪比, Peak Signal-to-Noise Ratio):**
+$$\\text{PSNR} = 10 \\cdot \\log_{10}\\left(\\frac{\\text{MAX}_I^2}{\\text{MSE}}\\right)$$
+- 核心原理: 纯物理信号级指标，基于逐像素均方误差 (MSE) 的对数比率。
+- 取值范围: 通常在 20 至 50 dB 之间，值越高代表失真越小。
+- 致命缺陷: 对全局微小色彩平移（如整体偏蓝/偏暖）或微小位移极其敏感，容易出现人眼看着清晰但 PSNR 断崖下跌的情况。
+
+3. **CLI 联合复现命令:**
+\`\`\`bash
+image-evaluator --metrics ssim psnr --image sample.png --reference ref.png
+\`\`\``;
+  }
+
   if (q.includes('色偏') || q.includes('psnr') || q.includes('lpips') || q.includes('暴跌') || q.includes('像素')) {
     return `### 全局色偏下 PSNR 暴跌与 LPIPS 保持良好的数学机理
 
 1. **PSNR (峰值信噪比) 机制与缺陷:**
-- 计算公式: $\\text{PSNR} = 10 \\cdot \\log_{10}(\\frac{\\text{MAX}^2}{\\text{MSE}})$，完全基于逐像素均方误差。
+$$\\text{PSNR} = 10 \\cdot \\log_{10}\\left(\\frac{\\text{MAX}_I^2}{\\text{MSE}}\\right)$$
 - 暴跌原因: 当图像出现全局轻微色彩偏移（如色调微调）或微小位移时，全图所有像素均产生固定残差，MSE 在整幅图像累积放大，导致对数空间内的 PSNR 出现断崖式暴跌。
 
 2. **LPIPS (深度感知特征相似度) 鲁棒性:**
