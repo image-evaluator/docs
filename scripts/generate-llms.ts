@@ -160,6 +160,9 @@ async function main(): Promise<void> {
   const pagesData: PageData[] = [];
 
   for (const slug of meta.pages) {
+    if (slug.startsWith('---')) {
+      continue;
+    }
     const mdxPath: string = path.join(contentDocsDir, `${slug}.mdx`);
     if (!fs.existsSync(mdxPath)) {
       console.warn(`Warning: MDX file not found for slug: ${slug} at ${mdxPath}`);

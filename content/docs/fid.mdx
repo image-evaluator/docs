@@ -1,0 +1,103 @@
+---
+title: 弗雷歇距离
+description: 基于 Inception-v3 激活特征均值与协方差矩阵的高斯分布统计差异度量
+---
+
+# 弗雷歇距离
+
+弗雷歇起始距离（Fréchet Inception Distance，简称 FID）由 Martin Heusel 等人于 NeurIPS 2017 提出，是评估生成对抗网络（GAN）、扩散模型（Diffusion Models）及自回归生成模型生成分布质量与多样性的公认黄金基准。该指标通过比对真实图像集与生成图像集在预训练特征空间的多元高斯分布差异，综合量化生成样本的保真度与分布覆盖度。
+
+---
+
+## 核心规格与指标特性
+
+| 参数维度 | 规范与技术事实 |
+| :--- | :--- |
+| **命令行参数** | `--metrics fid` |
+| **输入约束** | `--reference <dir>` 与 `--image <dir>` 必须同时提供且**均严格要求为已有目录** |
+| **输出形式** | 位于区间 $$[0.0, +\infty)$$ 的非负标量浮点数 |
+| **数值导向** | **越低越优**（0.0 代表两组图像集的激活特征统计分布完全重合） |
+| **特征提取器** | Inception-v3 经典骨干（倒数第二层全局平均池化激活，输出 2,048 维向量） |
+| **执行协议** | `clean-fid==0.1.35`，执行模式 `mode="clean"`，模型名称 `inception_v3` |
+| **学术出处** | Heusel et al., "GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium", NeurIPS 2017 |
+
+---
+
+## 理论推导与数学形式
+
+设真实图像分布特征提取激活均值向量与协方差矩阵为 $$(\mu_r, \Sigma_r)$$，生成图像分布对应统计量为 $$(\mu_g, \Sigma_g)$$。FID 定义为两组多元正态分布之间的第二类瓦瑟斯坦距离（Wasserstein-2 Distance）：
+
+```math
+d^2((\mu_r, \Sigma_r), (\mu_g, \Sigma_g)) = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left(\Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2}\right)
+
+```
+
+其中：
+- $$\|\mu_r - \mu_g\|_2^2$$ 衡量特征中心均值的欧氏距离（反映整体特征偏离）；
+- $$\text{Tr}(\cdot)$$ 表示矩阵的迹（主对角线元素之和）；
+- $$(\Sigma_r \Sigma_g)^{1/2}$$ 为两协方差矩阵乘积的平方根矩阵（反映多维特征协方差结构与多样性离散度）。
+
+---
+
+## 为什么选择抗混叠标准化实现
+
+传统 FID 实现库（如 `pytorch-fid` 或早期 TensorFlow 官方脚本）存在严重的工程隐患：
+1. **下采样混叠伪影**：将任意高分辨率图像强制缩放至 Inception 标准分辨率（$$299 \times 299$$）时，若缺乏高质量抗混叠低通滤波，高频几何噪声将污染深层特征提取。
+2. **跨库重采样差异**：PIL、OpenCV 与 PyTorch 的双线性插值实现细节不同，相同图集在不同库下可产生 5 至 10 点的 FID 数值偏差。
+
+本套件严格锁定 Parmar et al., CVPR 2022 提出的 `clean-fid` 官方标准协议，采用抗混叠滤波双线性重采样管线，杜绝测量漂移。
+
+---
+
+## 目录输入契约与样本量约束
+
+- **双向严格目录契约**：FID 专用于群体分布度量，`--image` 与 `--reference` 必须均为目录。若传入单图文件路径，CLI 参数解析器立即以非零状态码拦截退出。
+- **无需主名文件名配对**：两侧目录允许具有完全不同的文件名、子目录层级与样本总量（$$N_{\text{ref}} \ne N_{\text{gen}}$$）。
+- **递归图片扫描与破损图拦截**：自动递归扫描识别常见格式（`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.npy`）。在提取前对所有图片执行数据完整性校验，破损文件即刻抛出异常拦截。
+- **小样本正向偏差特性**：FID 是样本协方差的有偏估计量。当样本量 $$N < 2048$$ 时，测算出的 FID 数值会系统性偏高。在学术最终榜单对比中，建议提供至少 2,048 张（推荐 50,000 张）样本。
+
+---
+
+## 命令行调用范例
+
+<Steps>
+  <Step>
+    单指标数据集分布评测。
+
+    评估生成图集目录与真实基准图集目录的弗雷歇距离：
+
+    ```bash
+    image-evaluator --metrics fid \
+        --reference path/to/real_dataset/ \
+        --image path/to/generated_dataset/
+
+    ```
+  </Step>
+
+  <Step>
+    多指标协同评测。
+
+    联合计算数据集级分布指标（FID 与 KID）：
+
+    ```bash
+    image-evaluator --metrics fid kid \
+        --reference path/to/real_dataset/ \
+        --image path/to/generated_dataset/
+
+    ```
+  </Step>
+</Steps>
+
+---
+
+## 深入工程细节与诊断建议
+
+<Accordions>
+  <Accordion title="不同实现库之间的数值可比性声明">
+    基于 `mode="clean"` 测得的 FID 分数**不能直接与传统历史脚本（如未抗混叠的 pytorch-fid）横向对比**。在论文汇报或基准复现时，必须明确声明采用 Clean-FID 标准模式。
+  </Accordion>
+
+  <Accordion title="小样本调试与大样本测试的策略建议">
+    在开发与快速实验阶段，可使用数百张样本快速验证模型演进趋势（相对值排序依然具备指导价值）；但在正式发布模型评测报告时，务必增大采样规模以消除正向估计偏差。
+  </Accordion>
+</Accordions>

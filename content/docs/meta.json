@@ -2,13 +2,20 @@
   "title": "文档中心",
   "pages": [
     "index",
+    "---单图与语义对齐---",
     "aesthetic",
     "clip",
     "arcface",
-    "pairwise",
-    "distribution",
+    "---成对保真度---",
+    "lpips",
+    "ssim",
+    "psnr",
+    "---数据集生成分布---",
+    "fid",
+    "kid",
+    "---人类偏好对齐---",
     "pickscore",
+    "---实测演练---",
     "visual-demo"
   ]
 }
-
