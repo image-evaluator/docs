@@ -33,7 +33,7 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 
 ---
 
-## Strict Dimension Check & Fail-Fast Policy
+## Input Shape Requirements
 
 - **No Silent Resizing**: Input pairs must strictly match in dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The engine strictly terminates with a `ValueError` on size mismatch to prevent high-frequency interpolation distortion.
 - **Exact Stem Alignment**: In directory mode, files pair strictly by case-sensitive stem across formats. Any unpaired file triggers an immediate halt.

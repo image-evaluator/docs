@@ -1,9 +1,9 @@
 ---
-title: Overview & Quickstart
+title: Quickstart
 description: Production-grade multidimensional evaluation toolkit for AI image generation
 ---
 
-# Overview & Quickstart
+# Quickstart
 
 `image-evaluator` is a production-grade, lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
 
@@ -13,7 +13,7 @@ description: Production-grade multidimensional evaluation toolkit for AI image g
 
 The toolkit structures its nine core metrics across four functional dimensions:
 
-| Dimension | Metric | Backbone & Feature Space | Direction | Documentation |
+| Dimension | Metric | Feature Space | Direction | Documentation |
 | :--- | :--- | :--- | :--- | :--- |
 | **Perceptual Quality** | `aesthetic` | OpenCLIP `ViT-L-14` + linear regression head | Higher is better | [Aesthetic Score](/single-image/aesthetic) |
 | **Text-Image Alignment** | `clip` | CLIP `clip-vit-base-patch32` cosine similarity | Higher is better | [CLIP Score](/single-image/clip) |
@@ -30,7 +30,7 @@ The toolkit structures its nine core metrics across four functional dimensions:
 ## Core Capability Highlights
 
 <Cards>
-  <Card title="Single-Image & Cross-Modal" href="/single-image/aesthetic" description="Evaluate standalone aesthetic appeal, prompt compliance, and facial identity preservation." />
+  <Card title="Single Image" href="/single-image/aesthetic" description="Evaluate standalone aesthetic appeal, prompt compliance, and facial identity preservation." />
   <Card title="Pairwise Fidelity Triad" href="/pairwise/lpips" description="Decouple deep perceptual texture (LPIPS), structural integrity (SSIM), and pixel MSE (PSNR)." />
   <Card title="Generative Distribution" href="/distribution/fid" description="Measure generative dataset distribution shift via large-sample FID and unbiased small-sample KID." />
   <Card title="Human Preference Alignment" href="/preference/pickscore" description="Score synthetic outputs using large-scale empirical human choice models." />
@@ -76,7 +76,7 @@ The toolkit structures its nine core metrics across four functional dimensions:
   </Step>
 
   <Step>
-    ### Text-Image Alignment & Preference Scoring
+    ### Text-Image Alignment and Preference Scoring
 
     Verify text prompt alignment and subjective human preference simultaneously:
 
@@ -175,15 +175,15 @@ The toolkit structures its nine core metrics across four functional dimensions:
 ## Architectural Principles
 
 <Accordions>
-  <Accordion title="Lazy Loading & Zero Memory Leakage">
+  <Accordion title="Lazy Loading Model Weights">
     The engine initializes only the models explicitly declared in `--metrics`. Weight caches and intermediate tensors are strictly scoped. Unselected heavy models (such as InsightFace or PickScore ViT-H-14) remain completely unloaded, preserving host RAM and GPU VRAM during long-running pipelines.
   </Accordion>
 
-  <Accordion title="Strict Spatial Alignment & Fail-Fast Safety">
+  <Accordion title="Strict Spatial Alignment Verification">
     Pairwise metrics enforce an absolute dimension check ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly rejects silent interpolation or resizing, guaranteeing that resolution scaling artifacts never contaminate deep perceptual measurements.
   </Accordion>
 
-  <Accordion title="Hardware Acceleration & Cross-Platform Support">
+  <Accordion title="Hardware Acceleration Across Platforms">
     Native support across Linux (CUDA acceleration, CPU fallback) and macOS (Apple Silicon Metal MPS, CPU). Automatic device resolution dynamically optimizes batch throughput without manual torch device configuration.
   </Accordion>
 </Accordions>

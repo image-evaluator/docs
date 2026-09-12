@@ -3,7 +3,7 @@
 
 ---
 
-# Overview & Quickstart
+# Quickstart
 
 > Production-grade multidimensional evaluation toolkit for AI image generation
 
@@ -15,7 +15,7 @@
 
 The toolkit structures its nine core metrics across four functional dimensions:
 
-| Dimension | Metric | Backbone & Feature Space | Direction | Documentation |
+| Dimension | Metric | Feature Space | Direction | Documentation |
 | :--- | :--- | :--- | :--- | :--- |
 | **Perceptual Quality** | `aesthetic` | OpenCLIP `ViT-L-14` + linear regression head | Higher is better | [Aesthetic Score](/single-image/aesthetic) |
 | **Text-Image Alignment** | `clip` | CLIP `clip-vit-base-patch32` cosine similarity | Higher is better | [CLIP Score](/single-image/clip) |
@@ -62,7 +62,7 @@ Score standalone visual appeal using LAION aesthetic predictor:
 
     ```
 
-### Text-Image Alignment & Preference Scoring
+### Text-Image Alignment and Preference Scoring
 
 Verify text prompt alignment and subjective human preference simultaneously:
 
@@ -145,15 +145,15 @@ Compare feature distribution shifts between generated and ground-truth directori
 
 ## Architectural Principles
 
-### Lazy Loading & Zero Memory Leakage
+### Lazy Loading Model Weights
 
 The engine initializes only the models explicitly declared in `--metrics`. Weight caches and intermediate tensors are strictly scoped. Unselected heavy models (such as InsightFace or PickScore ViT-H-14) remain completely unloaded, preserving host RAM and GPU VRAM during long-running pipelines.
 
-### Strict Spatial Alignment & Fail-Fast Safety
+### Strict Spatial Alignment Verification
 
 Pairwise metrics enforce an absolute dimension check ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly rejects silent interpolation or resizing, guaranteeing that resolution scaling artifacts never contaminate deep perceptual measurements.
 
-### Hardware Acceleration & Cross-Platform Support
+### Hardware Acceleration Across Platforms
 
 Native support across Linux (CUDA acceleration, CPU fallback) and macOS (Apple Silicon Metal MPS, CPU). Automatic device resolution dynamically optimizes batch throughput without manual torch device configuration.
 
@@ -180,7 +180,7 @@ LAION AI Aesthetic Score estimates perceived visual quality using an OpenCLIP `V
 
 ---
 
-## Formulation & Architectural Alignment
+## Formulation
 
 The predictor extracts a 768-dimensional normalized visual embedding $\mathbf{z} \in \mathbb{R}^{768}$ from the input image $I$, then applies a learned linear projection:
 
@@ -435,7 +435,7 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 
 ---
 
-## Strict Dimension Check & Fail-Fast Policy
+## Input Shape Requirements
 
 - **No Silent Resizing**: Input pairs must strictly match in dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The engine strictly terminates with a `ValueError` on size mismatch to prevent high-frequency interpolation distortion.
 - **Exact Stem Alignment**: In directory mode, files pair strictly by case-sensitive stem across formats. Any unpaired file triggers an immediate halt.

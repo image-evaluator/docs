@@ -7,9 +7,9 @@ import './global.css';
 export const metadata: Metadata = {
   title: {
     template: '%s | image-evaluator',
-    default: 'image-evaluator | Unified Image Quality & Multidimensional Alignment Toolkit',
+    default: 'image-evaluator | Image Quality and Alignment Evaluation',
   },
-  description: 'Production-grade multidimensional evaluation toolkit for AI image generation covering 9 core metrics with Python API & CLI.',
+  description: 'Evaluation toolkit for AI image generation covering 9 metrics with Python and CLI interfaces.',
 };
 
 export default function RootLayout({

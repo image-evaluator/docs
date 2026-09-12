@@ -13,11 +13,11 @@ def save(path, content):
 # 1. INDEX
 # ==============================================================================
 save("index.mdx", """---
-title: Overview & Quickstart
+title: Quickstart
 description: Production-grade multidimensional evaluation toolkit for AI image generation
 ---
 
-# Overview & Quickstart
+# Quickstart
 
 `image-evaluator` is a production-grade, lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
 

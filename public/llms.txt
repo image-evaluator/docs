@@ -2,7 +2,7 @@
 > 生产级多维图像生成评测工具库，覆盖美学质量、语义对齐、主体保真、成对失真、分布差异与人类偏好 9 大核心评测指标。
 
 ## 文档索引
-- [Overview & Quickstart](/): Production-grade multidimensional evaluation toolkit for AI image generation
+- [Quickstart](/): Production-grade multidimensional evaluation toolkit for AI image generation
 - [Aesthetic (Visual Quality Score)](/single-image/aesthetic): Aesthetic Predictor V2 - Zero-reference aesthetic evaluation with OpenCLIP ViT-L-14
 - [CLIP Score (Text-Image Alignment)](/single-image/clip): Objective cosine similarity in multimodal embedding space via clip-vit-base-patch32
 - [ArcFace (Subject Identity Fidelity)](/single-image/arcface): Face identity cosine distance evaluation via InsightFace buffalo_l 512-dimensional embeddings
