@@ -2,10 +2,12 @@
   "title": "Documentation",
   "pages": [
     "index",
-    "single-image",
+    "---Categories---",
+    "no-reference",
+    "text-image",
     "pairwise",
     "distribution",
-    "preference",
+    "---Evaluation Lab---",
     "benchmark"
   ]
 }

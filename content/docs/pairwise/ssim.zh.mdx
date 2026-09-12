@@ -1,53 +1,87 @@
 ---
-title: SSIM (结构相似性)
-description: 局部高斯滑动窗口亮度、对比度与结构三分量统计相似度
+title: SSIM (结构相似度)
+description: 基于亮度、对比度与结构三要素局部高斯加权协方差的结构相似性度量
 ---
 
-# SSIM (结构相似性)
+# SSIM (结构相似度)
 
-结构相似性度量（Structural Similarity Index Measure，简称 SSIM）由 Zhou Wang 等人于 IEEE TIP 2004 提出。与仅衡量绝对数值差异的传统均方误差不同，SSIM 模拟人类视觉系统对结构信息的感知敏感性，将图像解耦为亮度均值、对比度方差与结构协方差三个独立分量。
-
----
-
-## 核心规格与指标特性
-
-| 参数维度 | 规范与技术事实 |
-| :--- | :--- |
-| **命令行参数** | `--metrics ssim` |
-| **输入约束** | 必须成对提供 `--image` 与 `--reference`（图像尺寸不得低于 $$11 \times 11$$ 像素） |
-| **输出形式** | 位于区间 $$[-1.0, 1.0]$$ 的标量浮点数 |
-| **数值导向** | **越高越优**（1.0 代表结构完全一致） |
-| **滑动窗口** | $$11 \times 11$$ 高斯局部加权滑动窗口，标准差 $$\sigma = 1.5$$ |
-| **多通道协议** | RGB 三个通道分别独立计算 SSIM，返回三通道非加权算术均值 |
+结构相似度指标 (Wang et al., IEEE TIP 2004) 旨在模拟人类视觉系统对图像结构特征的提取能力。相比于单纯度量像素点绝对差值的 MSE，SSIM 将图像失真拆解为亮度 (Luminance)、对比度 (Contrast) 与结构 (Structure) 三个相互独立的物理量，能够有效衡量压缩伪影与细节模糊。
 
 ---
 
-## 理论推导与数学形式
+## 指标诊断区间标尺
 
-对于局部图像块 $x$ 与 $y$，SSIM 综合亮度分量 $l(x, y)$、对比度分量 $c(x, y)$ 与结构分量 $s(x, y)$：
+<MetricScale
+  min={0.0}
+  max={1.0}
+  unit=""
+  direction="higher"
+  segments={[
+    { label: "高保真结构保持", range: [0.85, 1.0], color: "emerald", note: "边缘清晰、几何轮廓完好、微观结构高度一致" },
+    { label: "轻微模糊或压缩", range: [0.65, 0.85], color: "amber", note: "常见有损压缩伪影或轻度去噪平滑" },
+    { label: "严重结构破损", range: [0.0, 0.65], color: "rose", note: "线条撕裂、错位畸变或局部几何严重变形" }
+  ]}
+/>
+
+---
+
+## 接口参数契约
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "声明评测指标，必须包含 'ssim'。",
+      default: "必填"
+    },
+    "--image": {
+      type: "string (路径)",
+      description: "待测生成图像文件或目录路径。",
+      default: "必填"
+    },
+    "--reference": {
+      type: "string (路径)",
+      description: "基准参考图像文件或目录路径。",
+      default: "必填"
+    },
+    "--prompt": {
+      type: "string",
+      description: "成对评测禁止传入提示词。",
+      default: "禁止"
+    }
+  }}
+/>
+
+<Callout type="warn">
+  **最小分辨率限制**：由于 SSIM 底层采用 $11 \times 11$ 的高斯平滑窗口进行局部统计，受测图像的宽和高必须均不小于 11 像素。任意维度小于 11 像素的图片将直接抛出 `ValueError`。
+</Callout>
+
+---
+
+## 理论公式推导
+
+标准 SSIM 综合局部均值 $\mu$、方差 $\sigma^2$ 以及互协方差 $\sigma_{xy}$：
 
 ```math
 \text{SSIM}(x, y) = \frac{(2\mu_x \mu_y + C_1)(2\sigma_{xy} + C_2)}{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}
 ```
 
-其中 $C_1 = (K_1 L)^2, C_2 = (K_2 L)^2$，默认参数为 $K_1 = 0.01, K_2 = 0.03, L = 1.0$。
+其中常数 $C_1 = (K_1 L)^2, C_2 = (K_2 L)^2$（默认 $K_1=0.01, K_2=0.03, L=255$）用于避免分母为零。分值越接近 $1.0$ 说明结构越完整。
 
 ---
 
-## 调用范例 (CLI 与 Python API)
+## 调用示例
 
 <Steps>
   <Step>
-    ### 单对图像结构相似性打分
+    ### 单对图像结构相似度评估
 
-    评估单幅生成图像相对基准真值的结构相似度：
+    计算单张生成图片与原图的结构相似度：
 
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics ssim \
-            --reference path/to/reference.png \
-            --image path/to/generated.png
+        image-evaluator --metrics ssim             --reference path/to/reference.png             --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -55,27 +89,25 @@ description: 局部高斯滑动窗口亮度、对比度与结构三分量统计�
         from image_evaluator.ssim_predictor import SSIMPredictor
 
         predictor = SSIMPredictor()
-        similarity = predictor.evaluate_ssim(
+        score = predictor.evaluate_ssim(
             reference_path="path/to/reference.png",
             generated_path="path/to/generated.png"
         )
-        print(f"SSIM 结构相似度: {similarity:.4f}")
+        print(f"SSIM 得分: {score:.4f}")
         ```
       </Tab>
     </Tabs>
   </Step>
 
   <Step>
-    ### 目录批量逐对评测
+    ### 目录批量配对评测
 
-    对两个目录中同名文件执行逐对 SSIM 计算并统计均值：
+    批量评估配对图集的平均结构保真度：
 
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics ssim \
-            --reference path/to/reference_folder/ \
-            --image path/to/generated_folder/
+        image-evaluator --metrics ssim             --reference path/to/reference_folder/             --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -83,13 +115,14 @@ description: 局部高斯滑动窗口亮度、对比度与结构三分量统计�
         from image_evaluator.ssim_predictor import SSIMPredictor
 
         predictor = SSIMPredictor()
-        mean_ssim = predictor.evaluate_folder_ssim(
+        mean_score = predictor.evaluate_folder_ssim(
             reference_folder="path/to/reference_folder/",
             generated_folder="path/to/generated_folder/"
         )
-        print(f"平均 SSIM: {mean_ssim:.4f}")
+        print(f"平均 SSIM: {mean_score:.4f}")
         ```
       </Tab>
     </Tabs>
   </Step>
 </Steps>
+

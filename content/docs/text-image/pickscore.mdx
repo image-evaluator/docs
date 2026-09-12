@@ -1,0 +1,124 @@
+---
+title: PickScore
+description: Fine-tuned CLIP ViT-H-14 human preference reward scoring trained on the Pick-a-Pic benchmark
+---
+
+# PickScore
+
+PickScore by Kirstain et al. (NeurIPS 2023) evaluates text-to-image synthesis quality against human subjective preferences. While standard CLIP evaluates objective semantic similarity, PickScore is fine-tuned on over 500,000 empirical human choices from the Pick-a-Pic dataset (`yuvalkirstain/PickScore_v1`), predicting which synthetic generation humans prefer.
+
+---
+
+## Benchmark Diagnostic Scale
+
+<MetricScale
+  min={10.0}
+  max={30.0}
+  unit=" logit"
+  direction="higher"
+  segments={[
+    { label: "Top-Tier Choice", range: [21.0, 30.0], color: "emerald", note: "Strong human preference & high generation appeal" },
+    { label: "Standard Quality", range: [17.0, 21.0], color: "amber", note: "Typical baseline generative outputs" },
+    { label: "Human Dislike", range: [10.0, 17.0], color: "rose", note: "Obvious anatomy flaws, blur, or prompt deviation" }
+  ]}
+/>
+
+---
+
+## Parameter Contract
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "Must include 'pickscore'.",
+      default: "required"
+    },
+    "--image": {
+      type: "string (path)",
+      description: "Path to input image file or directory of images.",
+      default: "required"
+    },
+    "--prompt": {
+      type: "string",
+      description: "Required text prompt describing the image generation context.",
+      default: "required"
+    },
+    "--reference": {
+      type: "string",
+      description: "Not allowed for PickScore evaluation.",
+      default: "none"
+    }
+  }}
+/>
+
+---
+
+## Mathematical Formulation
+
+PickScore projects image $I$ and prompt $T$ through fine-tuned CLIP ViT-H-14 encoders into normalized 1024-dimensional space, computing a temperature-calibrated softmax preference logit:
+
+```math
+s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}}(T)}{\|\Phi_{\text{image}}(I)\|_2 \|\Phi_{\text{text}}(T)\|_2}
+```
+
+On empirical test sets, real outputs typically score in $[15.0, 25.0]$. Higher values indicate stronger alignment with human aesthetic choices.
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Image Evaluation
+
+    Score human aesthetic preference against a target prompt:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics pickscore             --image path/to/sample.png             --prompt "an oil painting of a cottage in the woods at twilight"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
+
+        predictor = PickScorePredictor()
+        score = predictor.evaluate_pickscore(
+            image_path="path/to/sample.png",
+            prompt="an oil painting of a cottage in the woods at twilight"
+        )
+        print(f"PickScore Preference: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Comparative Candidate Ranking
+
+    Compare multiple generated candidates to determine which one humans are most likely to select:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics pickscore             --image path/to/candidate_folder/             --prompt "portrait of an ancient warrior, detailed cinematic lighting"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
+
+        predictor = PickScorePredictor()
+        mean_score = predictor.evaluate_folder_pickscore(
+            folder_path="path/to/candidate_folder/",
+            prompt="portrait of an ancient warrior, detailed cinematic lighting"
+        )
+        print(f"Mean Candidate PickScore: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+

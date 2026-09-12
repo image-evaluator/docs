@@ -11,29 +11,31 @@ description: 统一图像质量与多维对齐评估套件
 
 ## 评估维度与指标矩阵
 
-本套件根据评估目标和输入数据的层级，将九项核心指标划分为四大体系：
+本套件严格基于评测输入参数契约，将九项核心指标划分为四大体系：
 
-| 评估维度 | 指标名称 | 核心机制与特征空间 | 取值方向 | 对应文档 |
-| :--- | :--- | :--- | :--- | :--- |
-| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [Aesthetic (单图美学)](/zh/single-image/aesthetic) |
-| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [CLIP Score (图文对齐)](/zh/single-image/clip) |
-| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [ArcFace (主体保真)](/zh/single-image/arcface) |
-| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [LPIPS (深度感知)](/zh/pairwise/lpips) |
-| **成对结构统计** | `ssim` | $11 \times 11$ 高斯局部加权结构相似度 | 数值越高越优 | [SSIM (结构相似)](/zh/pairwise/ssim) |
-| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [PSNR (峰值信噪比)](/zh/pairwise/psnr) |
-| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [FID (弗雷歇距离)](/zh/distribution/fid) |
-| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [KID (核最大均值)](/zh/distribution/kid) |
-| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [PickScore (偏好对齐)](/zh/preference/pickscore) |
+| 评测类别 | 指标名称 | 必填参数选项 | 核心机制与特征空间 | 取值方向 | 对应文档 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **单图无参考质量** | `aesthetic` | `--image` | OpenCLIP `ViT-L-14` + 线性回归打分头 | 数值越高越优 | [Aesthetic (单图美学)](/zh/no-reference/aesthetic) |
+| **跨模态图文对齐** | `clip` | `--image`, `--prompt` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [CLIP Score (图文对齐)](/zh/text-image/clip) |
+| **跨模态图文对齐** | `pickscore` | `--image`, `--prompt` | CLIP ViT-H-14 大规模人类真实偏好对齐打分 | 数值越高越优 | [PickScore (偏好对齐)](/zh/text-image/pickscore) |
+| **成对保真与主体** | `lpips` | `--image`, `--reference` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [LPIPS (深度感知)](/zh/pairwise/lpips) |
+| **成对保真与主体** | `ssim` | `--image`, `--reference` | $11 \times 11$ 高斯局部加权结构相似度 | 数值越高越优 | [SSIM (结构相似)](/zh/pairwise/ssim) |
+| **成对保真与主体** | `psnr` | `--image`, `--reference` | 逐像素均方误差对数信噪比 (dB) | 数值越高越优 | [PSNR (峰值信噪比)](/zh/pairwise/psnr) |
+| **成对保真与主体** | `arcface` | `--image`, `--reference` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [ArcFace (主体保真)](/zh/pairwise/arcface) |
+| **群体生成分布差异** | `fid` | `--image <dir>`, `--reference <dir>` | Inception-v3 pool3 特征二阶高斯统计距离 | 数值越低越优 | [FID (弗雷歇距离)](/zh/distribution/fid) |
+| **群体生成分布差异** | `kid` | `--image <dir>`, `--reference <dir>` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [KID (核最大均值)](/zh/distribution/kid) |
+
+<EvaluationWorkflow lang="zh" />
 
 ---
 
 ## 核心能力矩阵导览
 
 <Cards>
-  <Card title="单图与跨模态对齐" href="/zh/single-image/aesthetic" description="评估单图美学质量、提示词语义遵从度以及人脸主体身份一致性。" />
-  <Card title="成对保真度三元组" href="/zh/pairwise/lpips" description="解耦深层感知纹理 (LPIPS)、结构轮廓 (SSIM) 与底层像素均方误差 (PSNR)。" />
-  <Card title="数据集生成分布" href="/zh/distribution/fid" description="度量大样本分布距离 (FID) 与千张小样本无偏统计量 (KID)。" />
-  <Card title="人类真实偏好对齐" href="/zh/preference/pickscore" description="利用经过真实人类成对打分反馈微调的模型评测生成质感。" />
+  <Card title="单图无参考质量" href="/zh/no-reference/aesthetic" description="无须参考底图，评估单图美学构图、质感与纯视觉质量得分。" />
+  <Card title="跨模态图文对齐" href="/zh/text-image/clip" description="基于提示词语义遵从度 (CLIP) 与真实人类主观审美偏好 (PickScore) 进行联合评估。" />
+  <Card title="成对保真与主体一致" href="/zh/pairwise/lpips" description="解耦深层感知纹理 (LPIPS)、结构轮廓 (SSIM)、像素信噪比 (PSNR) 以及人脸主体身份 (ArcFace)。" />
+  <Card title="群体生成分布差异" href="/zh/distribution/fid" description="度量大样本分布距离 (FID) 与千张小样本无偏统计量 (KID)。" />
   <Card title="交互式实测演练" href="/zh/benchmark/visual-demo" description="探查严重几何撕裂、全局暖色温色偏与人脸编辑下的多维指标联动。" />
 </Cards>
 

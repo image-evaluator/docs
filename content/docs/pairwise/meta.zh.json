@@ -1,8 +1,9 @@
 {
-  "title": "成对保真度三元组",
+  "title": "成对保真与主体一致",
   "pages": [
     "lpips",
     "ssim",
-    "psnr"
+    "psnr",
+    "arcface"
   ]
 }

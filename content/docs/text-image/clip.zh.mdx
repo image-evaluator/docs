@@ -1,0 +1,124 @@
+---
+title: CLIP Score (图文语义对齐)
+description: 基于 CLIP ViT-B/32 多模态联合嵌入空间的文本与图像余弦相似度评测
+---
+
+# CLIP Score (图文语义对齐)
+
+CLIP Score (Hessel et al., EMNLP 2021) 用于评估生成图像与输入文本提示词（Prompt）之间的跨模态语义吻合度。该指标通过 `clip-vit-base-patch32` 将文本词元与图像像素映射至对齐的多模态超球面，计算余弦相似度并缩放至 $[0, 100]$ 区间。
+
+---
+
+## 指标诊断区间标尺
+
+<MetricScale
+  min={0.0}
+  max={100.0}
+  unit=" 分"
+  direction="higher"
+  segments={[
+    { label: "高度语义遵从", range: [28.0, 100.0], color: "emerald", note: "准确呈现提示词描述的核心主体、修饰属性与风格" },
+    { label: "中度语义关联", range: [20.0, 28.0], color: "amber", note: "出现主要对象，但存在属性漂移或细节漏生成" },
+    { label: "严重图文失配", range: [0.0, 20.0], color: "rose", note: "主体遗漏、虚假幻觉或严重语义偏离" }
+  ]}
+/>
+
+---
+
+## 接口参数契约
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "声明评测指标，必须包含 'clip'。",
+      default: "必填"
+    },
+    "--image": {
+      type: "string (路径)",
+      description: "待评估图片文件路径或目录。",
+      default: "必填"
+    },
+    "--prompt": {
+      type: "string",
+      description: "用于对齐比对的文本提示词字符串或包含提示词的文本文件路径。",
+      default: "必填"
+    },
+    "--reference": {
+      type: "string",
+      description: "图文对齐不依赖配对参考底图，禁止传入。",
+      default: "禁止"
+    }
+  }}
+/>
+
+---
+
+## 理论公式推导
+
+给定图像 $I$ 与文本提示词 $T$，图像编码器 $\mathbf{E}_I$ 与文本编码器 $\mathbf{E}_T$ 提取单位超球面上的 $L_2$ 归一化向量：
+
+```math
+\text{CLIP}(I, T) = 100 \cdot \max\left( \frac{\mathbf{E}_I(I) \cdot \mathbf{E}_T(T)}{\|\mathbf{E}_I(I)\|_2 \|\mathbf{E}_T(T)\|_2}, 0 \right)
+```
+
+分值范围在 $[0.0, 100.0]$ 之间，分值越高表明生成图像越贴合提示词的语义描述。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单张图像图文语义评估
+
+    计算单张图片对提示词的遵从得分：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics clip             --image path/to/sample.png             --prompt "an astronaut riding a horse on mars"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.clip_score_predictor import ClipScorePredictor
+
+        predictor = ClipScorePredictor()
+        score = predictor.evaluate_clip_score(
+            image_path="path/to/sample.png",
+            prompt="an astronaut riding a horse on mars"
+        )
+        print(f"CLIP 图文对齐分: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 目录批量图文对齐评估
+
+    针对整个生成图库批量计算同一基准提示词的平均对齐分：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics clip             --image path/to/folder/             --prompt "photorealistic portrait of a cyberpunk detective"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.clip_score_predictor import ClipScorePredictor
+
+        predictor = ClipScorePredictor()
+        mean_score = predictor.evaluate_folder_clip_score(
+            folder_path="path/to/folder/",
+            prompt="photorealistic portrait of a cyberpunk detective"
+        )
+        print(f"平均 CLIP 图文对齐分: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+

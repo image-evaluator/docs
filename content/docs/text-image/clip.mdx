@@ -1,0 +1,124 @@
+---
+title: CLIP Score
+description: Text-to-image cross-modal semantic cosine alignment using CLIP ViT-B/32
+---
+
+# CLIP Score
+
+CLIP Score by Hessel et al. (EMNLP 2021) evaluates the semantic consistency between a synthetic image and its descriptive text prompt. By projecting both text tokens and visual patches into a joint multimodal embedding space via `clip-vit-base-patch32`, it computes cosine similarity calibrated to $[0, 100]$.
+
+---
+
+## Benchmark Diagnostic Scale
+
+<MetricScale
+  min={0.0}
+  max={100.0}
+  unit=" pts"
+  direction="higher"
+  segments={[
+    { label: "High Alignment", range: [28.0, 100.0], color: "emerald", note: "Strong adherence to prompt concepts & styles" },
+    { label: "Moderate Match", range: [20.0, 28.0], color: "amber", note: "Core subject present, attributes may drift" },
+    { label: "Semantic Mismatch", range: [0.0, 20.0], color: "rose", note: "Missing primary objects or hallucinated content" }
+  ]}
+/>
+
+---
+
+## Parameter Contract
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "Must include 'clip'.",
+      default: "required"
+    },
+    "--image": {
+      type: "string (path)",
+      description: "Path to input image file or directory of images.",
+      default: "required"
+    },
+    "--prompt": {
+      type: "string",
+      description: "Text prompt string (or path to text file containing prompt).",
+      default: "required"
+    },
+    "--reference": {
+      type: "string",
+      description: "Not allowed for CLIP evaluation.",
+      default: "none"
+    }
+  }}
+/>
+
+---
+
+## Mathematical Formulation
+
+Given an image $I$ and prompt text $T$, the image encoder $\mathbf{E}_I$ and text encoder $\mathbf{E}_T$ produce $L_2$-normalized embeddings. The score is computed as:
+
+```math
+\text{CLIP}(I, T) = \max\left( 100 \cdot \cos(\mathbf{e}_I, \mathbf{e}_T), 0 \right) = 100 \cdot \max\left( \frac{\mathbf{E}_I(I) \cdot \mathbf{E}_T(T)}{\|\mathbf{E}_I(I)\|_2 \|\mathbf{E}_T(T)\|_2}, 0 \right)
+```
+
+Values scale in $[0.0, 100.0]$, where higher scores indicate stronger semantic compliance.
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Image Evaluation
+
+    Evaluate text adherence for a single generated image:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics clip             --image path/to/sample.png             --prompt "an astronaut riding a horse on mars"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.clip_score_predictor import ClipScorePredictor
+
+        predictor = ClipScorePredictor()
+        score = predictor.evaluate_clip_score(
+            image_path="path/to/sample.png",
+            prompt="an astronaut riding a horse on mars"
+        )
+        print(f"CLIP Score: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Folder Evaluation Against Shared Prompt
+
+    Evaluate all images in a folder against a single benchmark prompt:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics clip             --image path/to/folder/             --prompt "photorealistic portrait of a cyberpunk detective"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.clip_score_predictor import ClipScorePredictor
+
+        predictor = ClipScorePredictor()
+        mean_score = predictor.evaluate_folder_clip_score(
+            folder_path="path/to/folder/",
+            prompt="photorealistic portrait of a cyberpunk detective"
+        )
+        print(f"Mean CLIP Score: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+

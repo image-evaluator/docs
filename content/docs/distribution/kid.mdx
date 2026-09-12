@@ -1,40 +1,60 @@
 ---
 title: KID (Kernel Inception Distance)
-description: Polynomial kernel Maximum Mean Discrepancy unbiased U-statistic for small-sample evaluation
+description: Unbiased polynomial kernel maximum mean discrepancy (MMD) in Inception feature space
 ---
 
 # KID (Kernel Inception Distance)
 
-Kernel Inception Distance (KID), proposed by Bińkowski et al. (ICLR 2018), measures generative distribution similarity using the squared Maximum Mean Discrepancy (MMD) with a polynomial kernel on Inception representations. Unlike FID, KID is an **unbiased estimator**, delivering statistically reliable benchmarks even on small subsets (e.g. 100 to 1000 samples).
+Kernel Inception Distance (Bińkowski et al., ICLR 2018) is an unbiased metric for evaluating generative image distributions. Unlike FID, which fits a parametric Gaussian distribution and suffers from heavy small-sample bias, KID computes the squared Maximum Mean Discrepancy (MMD) with a cubic polynomial kernel via a U-statistic, providing reliable evaluation on subsets of 1,000 images or fewer.
 
 ---
 
-## Technical Specifications
+## Benchmark Diagnostic Scale
 
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics kid` |
-| **Input Constraint** | Two directories via `--image` and `--reference` |
-| **Output Type** | Mean and standard deviation floats (e.g. `mean +/- std`) |
-| **Direction** | **Lower is better** (0.0 represents matching distributions) |
-| **Estimator Type** | Unbiased U-statistic (may yield minute negative values due to sample variance) |
-| **Resampling Strategy** | Repeated random subset sampling ($N=1000$ per fold) |
+<MetricScale
+  min={-0.005}
+  max={0.08}
+  unit=""
+  direction="lower"
+  segments={[
+    { label: "Optimal Distribution", range: [-0.005, 0.005], color: "emerald", note: "Distribution shift near theoretical zero" },
+    { label: "Acceptable Divergence", range: [0.005, 0.025], color: "amber", note: "Standard generative divergence" },
+    { label: "Severe Mismatch", range: [0.025, 0.08], color: "rose", note: "High distribution discrepancy or mode failure" }
+  ]}
+/>
 
 ---
 
-## Formulation
+## Dataset Directory Layout
 
-For Inception features $x, y \in \mathbb{R}^{2048}$, KID utilizes a cubic polynomial kernel:
+KID operates over directories of images. Like FID, filenames do not need to match and counts can differ:
+
+<Files>
+  <Folder name="reference_dir" defaultOpen>
+    <File name="real_01.png" />
+    <File name="... (100 - 1000 samples)" />
+  </Folder>
+  <Folder name="generated_dir" defaultOpen>
+    <File name="gen_01.png" />
+    <File name="... (100 - 1000 samples)" />
+  </Folder>
+</Files>
+
+<Callout type="info">
+  **Small-Sample Unbiasedness & Negative Values**: Because the U-statistic is an unbiased estimator of squared MMD, sample variance around zero can yield small negative values (e.g. `-0.0004`). These reflect unbiased statistical variance and must **never** be manually clamped to zero.
+</Callout>
+
+---
+
+## Mathematical Formulation
+
+KID computes MMD with a cubic polynomial kernel $k(x, y) = \left(\frac{1}{d} x^T y + 1\right)^3$ across Inception feature representations:
 
 ```math
-k(x, y) = \left( \frac{1}{d} x^T y + 1 \right)^3, \quad d = 2048
+\text{KID} = \text{MMD}^2(P_r, P_g) = \mathbb{E}[k(x, x')] + \mathbb{E}[k(y, y')] - 2\mathbb{E}[k(x, y)]
 ```
 
-The unbiased squared MMD U-statistic between sample batches $X$ and $Y$ of size $m$ is given by:
-
-```math
-\text{MMD}_u^2(X, Y) = \frac{1}{m(m-1)} \sum_{i \neq j}^m k(x_i, x_j) + \frac{1}{m(m-1)} \sum_{i \neq j}^m k(y_i, y_j) - \frac{2}{m^2} \sum_{i, j}^m k(x_i, y_j)
-```
+The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{Std}$. Lower values reflect superior fidelity.
 
 ---
 
@@ -42,16 +62,14 @@ The unbiased squared MMD U-statistic between sample batches $X$ and $Y$ of size 
 
 <Steps>
   <Step>
-    ### Small-Sample Generative Distribution Evaluation
+    ### Dataset Distribution Evaluation
 
-    Compute unbiased KID mean and standard deviation:
+    Compute unbiased KID between generated and reference folders:
 
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics kid \
-            --reference path/to/real_dataset/ \
-            --image path/to/generated_dataset/
+        image-evaluator --metrics kid             --reference path/to/reference_dir/             --image path/to/generated_dir/
         ```
       </Tab>
       <Tab value="Python API">
@@ -59,9 +77,9 @@ The unbiased squared MMD U-statistic between sample batches $X$ and $Y$ of size 
         from image_evaluator.kid_predictor import KIDPredictor
 
         predictor = KIDPredictor()
-        mean_kid, std_kid = predictor.evaluate_folder_kid(
-            reference_folder="path/to/real_dataset/",
-            generated_folder="path/to/generated_dataset/"
+        mean_kid, std_kid = predictor.evaluate_kid(
+            reference_folder="path/to/reference_dir/",
+            generated_folder="path/to/generated_dir/"
         )
         print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
         ```
@@ -69,3 +87,4 @@ The unbiased squared MMD U-statistic between sample batches $X$ and $Y$ of size 
     </Tabs>
   </Step>
 </Steps>
+

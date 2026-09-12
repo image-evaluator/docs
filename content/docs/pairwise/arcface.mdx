@@ -1,0 +1,128 @@
+---
+title: ArcFace Distance
+description: Facial identity preservation using InsightFace buffalo_l 512-dimensional cosine feature distance
+---
+
+# ArcFace Distance
+
+ArcFace Distance (Deng et al., CVPR 2019) measures facial identity consistency between a generated portrait and a reference photo. By extracting 512-dimensional deep facial embeddings using InsightFace (`buffalo_l`), it computes normalized cosine feature distance. This is the gold-standard metric for evaluating identity retention in LoRA, InstantID, PhotoMaker, and DreamBooth personalized generation.
+
+---
+
+## Benchmark Diagnostic Scale
+
+<MetricScale
+  min={0.0}
+  max={2.0}
+  unit=""
+  direction="lower"
+  segments={[
+    { label: "Same Identity", range: [0.0, 0.40], color: "emerald", note: "High identity retention (InstantID / LoRA verification standard)" },
+    { label: "Ambiguous Drift", range: [0.40, 0.60], color: "amber", note: "Facial expression or lighting causing boundary drift" },
+    { label: "Different Identity", range: [0.60, 2.0], color: "rose", note: "Identity lost or incorrect biometric features" }
+  ]}
+/>
+
+---
+
+## Parameter Contract
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "Must include 'arcface'.",
+      default: "required"
+    },
+    "--image": {
+      type: "string (path)",
+      description: "Path to generated facial image or folder.",
+      default: "required"
+    },
+    "--reference": {
+      type: "string (path)",
+      description: "Path to reference ground-truth facial image or folder.",
+      default: "required"
+    },
+    "--prompt": {
+      type: "string",
+      description: "Not allowed for facial identity evaluation.",
+      default: "none"
+    }
+  }}
+/>
+
+<Callout type="warn">
+  **Face Detection Prerequisite**: ArcFace requires successful face detection in **both** the reference and generated images via InsightFace RetinaFace (`buffalo_l`). If no face is detected in either image, the metric returns `None`.
+</Callout>
+
+---
+
+## Mathematical Formulation
+
+The cosine distance between $L_2$-normalized 512-dimensional face embeddings $\mathbf{f}_1$ and $\mathbf{f}_2$ is defined as:
+
+```math
+\text{Distance}(\mathbf{f}_1, \mathbf{f}_2) = 1 - \frac{\mathbf{f}_1 \cdot \mathbf{f}_2}{\|\mathbf{f}_1\|_2 \|\mathbf{f}_2\|_2}
+```
+
+Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemblance ($0.0$ denotes exact mathematical identity).
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Pair Face Identity Evaluation
+
+    Compare facial identity retention between generated output and real photo:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics arcface             --reference path/to/reference_face.png             --image path/to/generated_face.png
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+        predictor = ArcFaceDistPredictor()
+        distance = predictor.evaluate_arcface(
+            reference_path="path/to/reference_face.png",
+            generated_path="path/to/generated_face.png"
+        )
+        print(f"ArcFace Distance: {distance:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Personalized Generation Benchmark
+
+    Batch evaluate personalization testsets across folders:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics arcface             --reference path/to/reference_faces/             --image path/to/generated_faces/
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+        predictor = ArcFaceDistPredictor()
+        mean_dist = predictor.evaluate_folder_arcface(
+            reference_folder="path/to/reference_faces/",
+            generated_folder="path/to/generated_faces/"
+        )
+        print(f"Mean Face Distance: {mean_dist:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+

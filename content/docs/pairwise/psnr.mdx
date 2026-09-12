@@ -1,37 +1,75 @@
 ---
 title: PSNR (Peak Signal-to-Noise Ratio)
-description: Pixel-level reconstruction fidelity computed from Mean Squared Error
+description: Peak Signal-to-Noise Ratio (dB) computed from pixel-wise Mean Squared Error
 ---
 
 # PSNR (Peak Signal-to-Noise Ratio)
 
-Peak Signal-to-Noise Ratio (PSNR) is the classical baseline metric in digital signal processing and image restoration. Measuring the ratio between maximum signal energy and reconstruction noise, it quantifies strict pixel-level ground-truth fidelity.
+Peak Signal-to-Noise Ratio (PSNR) evaluates the objective reconstruction fidelity of an image by measuring the ratio between the maximum possible pixel power and corrupting mean squared error (MSE). Expressed in decibels (dB), it serves as a foundational engineering baseline for image restoration, super-resolution, and codec compression.
 
 ---
 
-## Technical Specifications
+## Benchmark Diagnostic Scale
 
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics psnr` |
-| **Input Constraint** | Paired `--image` and `--reference` (exact matching spatial dimensions) |
-| **Output Type** | Logarithmic decibels (dB) in `[0.0, +inf)` |
-| **Direction** | **Higher is better** (typical high quality: 30-50 dB; identical: `+inf`) |
-| **Input Range** | Floats normalized to `[0.0, 1.0]`, $\text{MAX}_I = 1.0$ |
-| **Zero-MSE Behavior** | Strictly returns `float("inf")` when images are identical |
+<MetricScale
+  min={15.0}
+  max={50.0}
+  unit=" dB"
+  direction="higher"
+  segments={[
+    { label: "High Fidelity", range: [35.0, 50.0], color: "emerald", note: "Imperceptible pixel differences, near-lossless" },
+    { label: "Standard Codec Range", range: [25.0, 35.0], color: "amber", note: "Standard lossy compression (JPEG, WebP)" },
+    { label: "Severe Pixel Degradation", range: [15.0, 25.0], color: "rose", note: "Heavy noise, severe color tints, or blurring" }
+  ]}
+/>
 
 ---
 
-## Formulation
+## Parameter Contract
 
-Given ground-truth $I$ and generated $K$ of dimensions $m \times n$:
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "Must include 'psnr'.",
+      default: "required"
+    },
+    "--image": {
+      type: "string (path)",
+      description: "Path to generated image file or folder.",
+      default: "required"
+    },
+    "--reference": {
+      type: "string (path)",
+      description: "Path to ground-truth reference image file or folder.",
+      default: "required"
+    },
+    "--prompt": {
+      type: "string",
+      description: "Not allowed for PSNR evaluation.",
+      default: "none"
+    }
+  }}
+/>
+
+<Callout type="info">
+  **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. While it provides mathematically exact noise metrics, a global color shift (e.g. slight warm tint) or a single-pixel spatial shift can drastically reduce PSNR while leaving perceived quality intact. Pair with **LPIPS** for holistic evaluation.
+</Callout>
+
+---
+
+## Mathematical Formulation
+
+Given reference image $I$ and generated image $K$ of size $m \times n$:
 
 ```math
-\text{MSE} = \frac{1}{3mn} \sum_{c=1}^3 \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j, c) - K(i, j, c)]^2
+\text{MSE} = \frac{1}{mn} \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j) - K(i, j)]^2
 ```
 
+The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
+
 ```math
-\text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right)
+\text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right) = 20 \cdot \log_{10}(\text{MAX}_I) - 10 \cdot \log_{10}(\text{MSE})
 ```
 
 ---
@@ -40,16 +78,14 @@ Given ground-truth $I$ and generated $K$ of dimensions $m \times n$:
 
 <Steps>
   <Step>
-    ### Single Pair PSNR
+    ### Single Pair Evaluation
 
-    Evaluate reconstruction signal-to-noise ratio:
+    Evaluate pixel-level reconstruction signal-to-noise ratio:
 
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics psnr \
-            --reference path/to/reference.png \
-            --image path/to/generated.png
+        image-evaluator --metrics psnr             --reference path/to/reference.png             --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API">
@@ -70,14 +106,12 @@ Given ground-truth $I$ and generated $K$ of dimensions $m \times n$:
   <Step>
     ### Directory Batch Evaluation
 
-    Compute pairwise mean PSNR across directories:
+    Calculate mean PSNR across paired image directories:
 
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics psnr \
-            --reference path/to/reference_folder/ \
-            --image path/to/generated_folder/
+        image-evaluator --metrics psnr             --reference path/to/reference_folder/             --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API">
@@ -95,3 +129,4 @@ Given ground-truth $I$ and generated $K$ of dimensions $m \times n$:
     </Tabs>
   </Step>
 </Steps>
+

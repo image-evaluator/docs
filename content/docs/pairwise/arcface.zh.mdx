@@ -1,0 +1,128 @@
+---
+title: ArcFace (主体人脸一致性)
+description: 基于 InsightFace buffalo_l 512 维特征余弦距离的人脸主体身份保持度评测
+---
+
+# ArcFace (主体人脸一致性)
+
+ArcFace 人脸距离 (Deng et al., CVPR 2019) 用于度量生成人像与真实人物参考照之间的人脸生物特征一致性。通过 InsightFace (`buffalo_l`) 骨干网络提取主面部 512 维深度人脸嵌入特征，计算其余弦特征距离。该指标是评估 InstantID、PhotoMaker、LoRA 与 DreamBooth 等个性化人脸保持算法的核心度量工具。
+
+---
+
+## 指标诊断区间标尺
+
+<MetricScale
+  min={0.0}
+  max={2.0}
+  unit=""
+  direction="lower"
+  segments={[
+    { label: "同一人物确认", range: [0.0, 0.40], color: "emerald", note: "人脸身份高度保持（主流 LoRA 与 InstantID 达标门槛）" },
+    { label: "疑似身份漂移", range: [0.40, 0.60], color: "amber", note: "表情剧烈变化、光照干扰或五官存在模糊漂移" },
+    { label: "不同人物判定", range: [0.60, 2.0], color: "rose", note: "人脸特征丢失，判定为完全不同的人物面孔" }
+  ]}
+/>
+
+---
+
+## 接口参数契约
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "声明评测指标，必须包含 'arcface'。",
+      default: "必填"
+    },
+    "--image": {
+      type: "string (路径)",
+      description: "待测生成人像图片文件或目录路径。",
+      default: "必填"
+    },
+    "--reference": {
+      type: "string (路径)",
+      description: "真实人物参考原图文件或目录路径。",
+      default: "必填"
+    },
+    "--prompt": {
+      type: "string",
+      description: "人脸身份比对基于两图特征，禁止传入提示词。",
+      default: "禁止"
+    }
+  }}
+/>
+
+<Callout type="warn">
+  **人脸前置检测门禁**：ArcFace 必须在参考图与生成图中均成功检测到人脸（基于 RetinaFace 模型）。若任一图片未检测到人脸或置信度不足，该测试对将返回 `None`。
+</Callout>
+
+---
+
+## 理论公式推导
+
+两个 $L_2$ 归一化的 512 维人脸特征向量 $\mathbf{f}_1$ 与 $\mathbf{f}_2$ 之间的余弦距离定义为：
+
+```math
+\text{Distance}(\mathbf{f}_1, \mathbf{f}_2) = 1 - \frac{\mathbf{f}_1 \cdot \mathbf{f}_2}{\|\mathbf{f}_1\|_2 \|\mathbf{f}_2\|_2}
+```
+
+取值范围为 $[0.0, 2.0]$，分值越低代表面部五官生物特征越相似。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单对人脸身份保真度评估
+
+    评估单张生成人像与人物原照的面部特征距离：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics arcface             --reference path/to/reference_face.png             --image path/to/generated_face.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+        predictor = ArcFaceDistPredictor()
+        distance = predictor.evaluate_arcface(
+            reference_path="path/to/reference_face.png",
+            generated_path="path/to/generated_face.png"
+        )
+        print(f"ArcFace 人脸距离: {distance:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 个性化人像批量测试
+
+    批量评测微调模型在人物图库上的平均面孔一致性：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics arcface             --reference path/to/reference_faces/             --image path/to/generated_faces/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+        predictor = ArcFaceDistPredictor()
+        mean_dist = predictor.evaluate_folder_arcface(
+            reference_folder="path/to/reference_faces/",
+            generated_folder="path/to/generated_faces/"
+        )
+        print(f"平均人脸距离: {mean_dist:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+

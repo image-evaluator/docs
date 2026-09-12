@@ -5,32 +5,58 @@ description: Generative distribution distance evaluated in Inception-v3 pool3 fe
 
 # FID (Fréchet Inception Distance)
 
-Fréchet Inception Distance (FID), introduced by Heusel et al. (NeurIPS 2017), is the standard benchmark for evaluating the quality and diversity of generative models (GANs, Diffusion Models). It fits continuous multivariate Gaussians to deep feature representations extracted by Inception-v3 and computes the Wasserstein-2 distance between the real and generated distributions.
+Fréchet Inception Distance (Heusel et al., NeurIPS 2017) measures the statistical distance between a generated image distribution and a real-world dataset. By fitting multivariate Gaussians to the 2048-dimensional `pool3` features of an Inception-v3 network, it assesses both visual realism and sample diversity.
 
 ---
 
-## Technical Specifications
+## Benchmark Diagnostic Scale
 
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics fid` |
-| **Input Constraint** | Two existing directories via `--image` and `--reference` |
-| **Output Type** | Continuous scalar float in `[0.0, +inf)` |
-| **Direction** | **Lower is better** (0.0 represents identical distributions) |
-| **Feature Layer** | Official Inception-v3 (2048-dimensional activations from `pool3`) |
-| **Sample Size Rule** | Biased estimator. Sample size $N \ge 2048$ strongly recommended for publication |
+<MetricScale
+  min={0.0}
+  max={100.0}
+  unit=""
+  direction="lower"
+  segments={[
+    { label: "State of the Art", range: [0.0, 15.0], color: "emerald", note: "Commercial-grade diffusion realism & rich diversity" },
+    { label: "Acceptable Realism", range: [15.0, 40.0], color: "amber", note: "Standard generative research baseline" },
+    { label: "Mode Collapse", range: [40.0, 100.0], color: "rose", note: "Severe artifacts, blur, or severe loss of sample diversity" }
+  ]}
+/>
 
 ---
 
-## Formulation
+## Directory Layout Contract
 
-Let $(\mu_r, \Sigma_r)$ and $(\mu_g, \Sigma_g)$ represent the empirical mean and covariance matrices of Inception-v3 pool3 feature representations:
+FID requires directory inputs on both generated and reference sides. Unlike pairwise metrics, filenames do not need to match and sample counts may differ ($N_{\text{ref}} \neq N_{\text{gen}}$):
+
+<Files>
+  <Folder name="real_dataset" defaultOpen>
+    <File name="real_0001.png" />
+    <File name="real_0002.png" />
+    <File name="... (>= 2048 recommended)" />
+  </Folder>
+  <Folder name="generated_dataset" defaultOpen>
+    <File name="synth_0001.png" />
+    <File name="synth_0002.png" />
+    <File name="... (>= 2048 recommended)" />
+  </Folder>
+</Files>
+
+<Callout type="warn">
+  **Sample Size Bias Warning**: FID is a biased estimator. Evaluating with small sample sizes ($N < 2048$) systematically overestimates the true distribution distance and triggers a runtime warning. For sample sizes under 2000, consider using the unbiased **KID** metric instead.
+</Callout>
+
+---
+
+## Mathematical Formulation
+
+The Wasserstein-2 distance between two multivariate Gaussians $(\mu_r, \Sigma_r)$ and $(\mu_g, \Sigma_g)$ is computed as:
 
 ```math
-\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2} \right)
+\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2\left(\Sigma_r \Sigma_g\right)^{1/2} \right)
 ```
 
-The matrix square root $(\Sigma_r \Sigma_g)^{1/2}$ is resolved using robust Schur decomposition, with imaginary residuals eliminated if numerical conditioning issues arise.
+Lower values indicate closer fidelity and diversity to the ground-truth distribution.
 
 ---
 
@@ -38,16 +64,14 @@ The matrix square root $(\Sigma_r \Sigma_g)^{1/2}$ is resolved using robust Schu
 
 <Steps>
   <Step>
-    ### Dataset Generative Distribution Evaluation
+    ### Dataset Distribution Evaluation
 
-    Compute the FID score between a folder of synthesized samples and real reference data:
+    Compute CleanFID between generated and ground-truth directories:
 
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics fid \
-            --reference path/to/real_dataset/ \
-            --image path/to/generated_dataset/
+        image-evaluator --metrics fid             --reference path/to/real_images/             --image path/to/generated_images/
         ```
       </Tab>
       <Tab value="Python API">
@@ -55,13 +79,14 @@ The matrix square root $(\Sigma_r \Sigma_g)^{1/2}$ is resolved using robust Schu
         from image_evaluator.fid_predictor import FIDPredictor
 
         predictor = FIDPredictor()
-        fid_score = predictor.evaluate_fid(
-            reference_folder="path/to/real_dataset/",
-            generated_folder="path/to/generated_dataset/"
+        score = predictor.evaluate_fid(
+            reference_folder="path/to/real_images/",
+            generated_folder="path/to/generated_images/"
         )
-        print(f"FID Score: {fid_score:.4f}")
+        print(f"CleanFID Score: {score:.4f}")
         ```
       </Tab>
     </Tabs>
   </Step>
 </Steps>
+

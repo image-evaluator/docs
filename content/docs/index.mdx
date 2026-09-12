@@ -11,29 +11,31 @@ description: Production-grade multidimensional evaluation toolkit for AI image g
 
 ## Metric Architecture Matrix
 
-The toolkit structures its nine core metrics across four functional dimensions:
+The toolkit structures its nine core metrics across four functional dimensions based on evaluation input interface:
 
-| Dimension | Metric | Feature Space | Direction | Documentation |
-| :--- | :--- | :--- | :--- | :--- |
-| **Perceptual Quality** | `aesthetic` | OpenCLIP `ViT-L-14` + linear regression head | Higher is better | [Aesthetic Score](/single-image/aesthetic) |
-| **Text-Image Alignment** | `clip` | CLIP `clip-vit-base-patch32` cosine similarity | Higher is better | [CLIP Score](/single-image/clip) |
-| **Identity Fidelity** | `arcface` | InsightFace `buffalo_l` 512-dim cosine distance | Lower is better | [ArcFace Distance](/single-image/arcface) |
-| **Perceptual Distance** | `lpips` | AlexNet multi-scale deep activation features | Lower is better | [LPIPS Distance](/pairwise/lpips) |
-| **Structural Statistics** | `ssim` | $11 \times 11$ Gaussian sliding window covariance | Higher is better | [SSIM Similarity](/pairwise/ssim) |
-| **Pixel Reconstruction** | `psnr` | Pixel-wise Mean Squared Error logarithmic ratio | Higher is better | [PSNR Ratio](/pairwise/psnr) |
-| **Distribution Distance** | `fid` | Inception-v3 pool3 Gaussian quadratic distance | Lower is better | [FID Score](/distribution/fid) |
-| **Kernel MMD U-Statistic** | `kid` | Polynomial kernel maximum mean discrepancy | Lower is better | [KID Score](/distribution/kid) |
-| **Human Preference** | `pickscore` | Fine-tuned CLIP ViT-H-14 on Pick-a-Pic data | Higher is better | [PickScore](/preference/pickscore) |
+| Category | Metric | Input Options | Feature Space | Direction | Documentation |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **No-Reference Quality** | `aesthetic` | `--image` | OpenCLIP `ViT-L-14` + linear head | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
+| **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | CLIP `clip-vit-base-patch32` cosine | Higher is better | [CLIP Score](/text-image/clip) |
+| **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Fine-tuned CLIP ViT-H-14 logits | Higher is better | [PickScore](/text-image/pickscore) |
+| **Pairwise Comparison** | `lpips` | `--image`, `--reference` | AlexNet deep multi-scale features | Lower is better | [LPIPS Distance](/pairwise/lpips) |
+| **Pairwise Comparison** | `ssim` | `--image`, `--reference` | $11 \times 11$ Gaussian sliding window | Higher is better | [SSIM Similarity](/pairwise/ssim) |
+| **Pairwise Comparison** | `psnr` | `--image`, `--reference` | Mean Squared Error logarithmic SNR | Higher is better | [PSNR Ratio](/pairwise/psnr) |
+| **Pairwise Comparison** | `arcface` | `--image`, `--reference` | InsightFace `buffalo_l` 512-dim | Lower is better | [ArcFace Distance](/pairwise/arcface) |
+| **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | Inception-v3 pool3 Gaussian quadratic | Lower is better | [FID Score](/distribution/fid) |
+| **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | Polynomial kernel MMD U-statistic | Lower is better | [KID Score](/distribution/kid) |
+
+<EvaluationWorkflow lang="en" />
 
 ---
 
 ## Core Capability Highlights
 
 <Cards>
-  <Card title="Single Image" href="/single-image/aesthetic" description="Evaluate standalone aesthetic appeal, prompt compliance, and facial identity preservation." />
-  <Card title="Pairwise Fidelity Triad" href="/pairwise/lpips" description="Decouple deep perceptual texture (LPIPS), structural integrity (SSIM), and pixel MSE (PSNR)." />
-  <Card title="Generative Distribution" href="/distribution/fid" description="Measure generative dataset distribution shift via large-sample FID and unbiased small-sample KID." />
-  <Card title="Human Preference Alignment" href="/preference/pickscore" description="Score synthetic outputs using large-scale empirical human choice models." />
+  <Card title="No-Reference Quality" href="/no-reference/aesthetic" description="Evaluate standalone aesthetic appeal and visual composition without ground-truth reference." />
+  <Card title="Text-to-Image Alignment" href="/text-image/clip" description="Evaluate semantic prompt compliance and fine-tuned human subjective preference." />
+  <Card title="Pairwise Comparison" href="/pairwise/lpips" description="Measure perceptual distortion (LPIPS), structural fidelity (SSIM), pixel SNR (PSNR), and facial identity (ArcFace)." />
+  <Card title="Dataset Distribution" href="/distribution/fid" description="Quantify population-level distribution shift via large-sample FID and unbiased small-sample KID." />
   <Card title="Interactive Benchmark" href="/benchmark/visual-demo" description="Explore interactive split-screen comparisons across extreme distortion and color-shift cases." />
 </Cards>
 

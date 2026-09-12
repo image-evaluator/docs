@@ -3,15 +3,15 @@
 
 ## 文档索引
 - [Quickstart](/): Production-grade multidimensional evaluation toolkit for AI image generation
-- [Aesthetic (Visual Quality Score)](/single-image/aesthetic): Aesthetic Predictor V2 - Zero-reference aesthetic evaluation with OpenCLIP ViT-L-14
-- [CLIP Score (Text-Image Alignment)](/single-image/clip): Objective cosine similarity in multimodal embedding space via clip-vit-base-patch32
-- [ArcFace (Subject Identity Fidelity)](/single-image/arcface): Face identity cosine distance evaluation via InsightFace buffalo_l 512-dimensional embeddings
+- [Aesthetic Score](/no-reference/aesthetic): LAION aesthetic predictor using OpenCLIP ViT-L-14 visual embeddings and linear projection
+- [CLIP Score](/text-image/clip): Text-to-image cross-modal semantic cosine alignment using CLIP ViT-B/32
+- [PickScore](/text-image/pickscore): Fine-tuned CLIP ViT-H-14 human preference reward scoring trained on the Pick-a-Pic benchmark
 - [LPIPS (Perceptual Distance)](/pairwise/lpips): Learned Perceptual Image Patch Similarity using AlexNet multi-scale deep features
-- [SSIM (Structural Similarity)](/pairwise/ssim): Structural Similarity Index Measure via 11x11 Gaussian window decomposition
-- [PSNR (Peak Signal-to-Noise Ratio)](/pairwise/psnr): Pixel-level reconstruction fidelity computed from Mean Squared Error
+- [SSIM (Structural Similarity)](/pairwise/ssim): Structural Similarity Index Measure computed across luminance, contrast, and structure
+- [PSNR (Peak Signal-to-Noise Ratio)](/pairwise/psnr): Peak Signal-to-Noise Ratio (dB) computed from pixel-wise Mean Squared Error
+- [ArcFace Distance](/pairwise/arcface): Facial identity preservation using InsightFace buffalo_l 512-dimensional cosine feature distance
 - [FID (Fréchet Inception Distance)](/distribution/fid): Generative distribution distance evaluated in Inception-v3 pool3 feature space
-- [KID (Kernel Inception Distance)](/distribution/kid): Polynomial kernel Maximum Mean Discrepancy unbiased U-statistic for small-sample evaluation
-- [PickScore (Human Preference Alignment)](/preference/pickscore): Fine-tuned CLIP ViT-H-14 scoring model trained on large-scale human choice data
+- [KID (Kernel Inception Distance)](/distribution/kid): Unbiased polynomial kernel maximum mean discrepancy (MMD) in Inception feature space
 - [Visual Benchmark (Interactive Demo)](/benchmark/visual-demo): Interactive multi-metric dashboard and dual-image slider comparative inspection
 
 ## 核心指标矩阵

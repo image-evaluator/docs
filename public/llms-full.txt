@@ -13,19 +13,19 @@
 
 ## Metric Architecture Matrix
 
-The toolkit structures its nine core metrics across four functional dimensions:
+The toolkit structures its nine core metrics across four functional dimensions based on evaluation input interface:
 
-| Dimension | Metric | Feature Space | Direction | Documentation |
-| :--- | :--- | :--- | :--- | :--- |
-| **Perceptual Quality** | `aesthetic` | OpenCLIP `ViT-L-14` + linear regression head | Higher is better | [Aesthetic Score](/single-image/aesthetic) |
-| **Text-Image Alignment** | `clip` | CLIP `clip-vit-base-patch32` cosine similarity | Higher is better | [CLIP Score](/single-image/clip) |
-| **Identity Fidelity** | `arcface` | InsightFace `buffalo_l` 512-dim cosine distance | Lower is better | [ArcFace Distance](/single-image/arcface) |
-| **Perceptual Distance** | `lpips` | AlexNet multi-scale deep activation features | Lower is better | [LPIPS Distance](/pairwise/lpips) |
-| **Structural Statistics** | `ssim` | $11 \times 11$ Gaussian sliding window covariance | Higher is better | [SSIM Similarity](/pairwise/ssim) |
-| **Pixel Reconstruction** | `psnr` | Pixel-wise Mean Squared Error logarithmic ratio | Higher is better | [PSNR Ratio](/pairwise/psnr) |
-| **Distribution Distance** | `fid` | Inception-v3 pool3 Gaussian quadratic distance | Lower is better | [FID Score](/distribution/fid) |
-| **Kernel MMD U-Statistic** | `kid` | Polynomial kernel maximum mean discrepancy | Lower is better | [KID Score](/distribution/kid) |
-| **Human Preference** | `pickscore` | Fine-tuned CLIP ViT-H-14 on Pick-a-Pic data | Higher is better | [PickScore](/preference/pickscore) |
+| Category | Metric | Input Options | Feature Space | Direction | Documentation |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **No-Reference Quality** | `aesthetic` | `--image` | OpenCLIP `ViT-L-14` + linear head | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
+| **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | CLIP `clip-vit-base-patch32` cosine | Higher is better | [CLIP Score](/text-image/clip) |
+| **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Fine-tuned CLIP ViT-H-14 logits | Higher is better | [PickScore](/text-image/pickscore) |
+| **Pairwise Comparison** | `lpips` | `--image`, `--reference` | AlexNet deep multi-scale features | Lower is better | [LPIPS Distance](/pairwise/lpips) |
+| **Pairwise Comparison** | `ssim` | `--image`, `--reference` | $11 \times 11$ Gaussian sliding window | Higher is better | [SSIM Similarity](/pairwise/ssim) |
+| **Pairwise Comparison** | `psnr` | `--image`, `--reference` | Mean Squared Error logarithmic SNR | Higher is better | [PSNR Ratio](/pairwise/psnr) |
+| **Pairwise Comparison** | `arcface` | `--image`, `--reference` | InsightFace `buffalo_l` 512-dim | Lower is better | [ArcFace Distance](/pairwise/arcface) |
+| **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | Inception-v3 pool3 Gaussian quadratic | Lower is better | [FID Score](/distribution/fid) |
+| **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | Polynomial kernel MMD U-statistic | Lower is better | [KID Score](/distribution/kid) |
 
 ---
 
@@ -159,39 +159,32 @@ Native support across Linux (CUDA acceleration, CPU fallback) and macOS (Apple S
 
 ---
 
-# Aesthetic (Visual Quality Score)
+# Aesthetic Score
 
-> Aesthetic Predictor V2 - Zero-reference aesthetic evaluation with OpenCLIP ViT-L-14
+> LAION aesthetic predictor using OpenCLIP ViT-L-14 visual embeddings and linear projection
 
-LAION AI Aesthetic Score estimates perceived visual quality using an OpenCLIP `ViT-L-14` backbone coupled with a linear regression head trained on human ratings from aesthetic datasets (such as SAC and AVA). It is widely utilized for automated image filtering, curated gallery ranking, and analyzing prompt engineering quality.
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics aesthetic` |
-| **Input Constraint** | `--image` (single image file or directory) |
-| **Output Type** | Continuous scalar float (typical range `[1.0, 10.0]`) |
-| **Direction** | **Higher is better** |
-| **Backbone Architecture** | OpenCLIP `ViT-L-14` (`openai` weights, `force_quick_gelu=True`) + linear regression head |
-| **Source Implementation** | [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor) (`sa_0_4_vit_l_14_linear.pth`) |
+The LAION Aesthetic Predictor estimates the visual appeal and compositional beauty of a standalone image without requiring a ground-truth reference. It extracts normalized feature embeddings using OpenCLIP `ViT-L-14` and projects them through a lightweight linear head trained on the SAC (Simulacra Aesthetic Captions) and LAION-Aesthetics benchmark datasets.
 
 ---
 
-## Formulation
+## Benchmark Diagnostic Scale
 
-The predictor extracts a 768-dimensional normalized visual embedding $\mathbf{z} \in \mathbb{R}^{768}$ from the input image $I$, then applies a learned linear projection:
+---
+
+## Parameter Contract
+
+---
+
+## Mathematical Formulation
+
+The predictor computes a 768-dimensional normalized visual embedding $\mathbf{z} \in \mathbb{R}^{768}$ from image $I$, followed by an affine projection with learned weights $\mathbf{w}$ and bias $b$:
 
 ```math
-\text{Score}(I) = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right) + b
+s_{\text{aesthetic}} = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right) + b
 
 ```
 
-### QuickGELU Activation Alignment
-
-The predictor explicitly instantiates OpenCLIP with `force_quick_gelu=True`. This preserves exact consistency with the official OpenAI pre-trained weights and the historical reference implementation (`open_clip==1.3.0`). While modern `open_clip` releases defaulted to standard PyTorch `nn.GELU()`, triggering weight mismatch warnings, our explicit activation alignment eliminates warnings and guarantees deterministic embedding reproducibility.
+The resulting scalar output ranges in $[1.0, 10.0]$, where higher values reflect superior perceived artistic quality.
 
 ---
 
@@ -199,10 +192,10 @@ The predictor explicitly instantiates OpenCLIP with `force_quick_gelu=True`. Thi
 
 ### Single Image Evaluation
 
-Compute the aesthetic score for a single generated image:
+Evaluate standalone visual appeal for a synthetic image:
 
     ```bash
-    image-evaluator --metrics aesthetic --image sample.png
+    image-evaluator --metrics aesthetic --image path/to/sample.png
 
     ```
 
@@ -210,17 +203,17 @@ Compute the aesthetic score for a single generated image:
     from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
 
     predictor = LaionAiAestheticPredictor()
-    score = predictor.evaluate_aesthetic_score("sample.png")
+    score = predictor.evaluate_aesthetic_score("path/to/sample.png")
     print(f"Aesthetic Score: {score:.4f}")
 
     ```
 
-### Directory Batch Evaluation
+### Batch Directory Evaluation
 
-Compute the arithmetic mean aesthetic score across an entire image directory:
+Compute the mean aesthetic score across an entire folder of generated outputs:
 
     ```bash
-    image-evaluator --metrics aesthetic --image path/to/images_dir/
+    image-evaluator --metrics aesthetic --image path/to/folder/
 
     ```
 
@@ -228,55 +221,50 @@ Compute the arithmetic mean aesthetic score across an entire image directory:
     from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
 
     predictor = LaionAiAestheticPredictor()
-    mean_score = predictor.evaluate_folder_aesthetic_score("path/to/images_dir/")
-    print(f"Mean Aesthetic Score: {mean_score:.4f}")
+    mean_score = predictor.evaluate_folder_aesthetic_score("path/to/folder/")
+    print(f"Dataset Mean Aesthetic: {mean_score:.4f}")
 
     ```
 
 ---
 
-# CLIP Score (Text-Image Alignment)
+# CLIP Score
 
-> Objective cosine similarity in multimodal embedding space via clip-vit-base-patch32
+> Text-to-image cross-modal semantic cosine alignment using CLIP ViT-B/32
 
-CLIP Score measures the semantic alignment between a generated image and its guiding text prompt. It evaluates whether the visual concepts described in the prompt are faithfully manifested in the synthesized output by projecting both modalities into a shared normalized embedding space.
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics clip` |
-| **Input Constraint** | `--image` (file/directory) and `--prompt` (text or prompt file) |
-| **Output Type** | Continuous float in `[0.0, 100.0]` |
-| **Direction** | **Higher is better** |
-| **Backbone Architecture** | OpenAI `clip-vit-base-patch32` |
-| **Formula Reference** | Hessel et al., "CLIPScore: A Reference-free Evaluation Metric for Image Captioning", EMNLP 2021 |
+CLIP Score by Hessel et al. (EMNLP 2021) evaluates the semantic consistency between a synthetic image and its descriptive text prompt. By projecting both text tokens and visual patches into a joint multimodal embedding space via `clip-vit-base-patch32`, it computes cosine similarity calibrated to $[0, 100]$.
 
 ---
 
-## Formulation
+## Benchmark Diagnostic Scale
 
-Let $\mathbf{e}_I = \frac{\Phi_{\text{visual}}(I)}{\|\Phi_{\text{visual}}(I)\|_2}$ and $\mathbf{e}_T = \frac{\Phi_{\text{text}}(T)}{\|\Phi_{\text{text}}(T)\|_2}$ be the $L_2$-normalized visual and text embeddings:
+---
+
+## Parameter Contract
+
+---
+
+## Mathematical Formulation
+
+Given an image $I$ and prompt text $T$, the image encoder $\mathbf{E}_I$ and text encoder $\mathbf{E}_T$ produce $L_2$-normalized embeddings. The score is computed as:
 
 ```math
-\text{CLIP-Score}(I, T) = \max(100 \cdot \cos(\mathbf{e}_I, \mathbf{e}_T), 0) = \max(100 \cdot (\mathbf{e}_I \cdot \mathbf{e}_T), 0)
+\text{CLIP}(I, T) = \max\left( 100 \cdot \cos(\mathbf{e}_I, \mathbf{e}_T), 0 \right) = 100 \cdot \max\left( \frac{\mathbf{E}_I(I) \cdot \mathbf{E}_T(T)}{\|\mathbf{E}_I(I)\|_2 \|\mathbf{E}_T(T)\|_2}, 0 \right)
 
 ```
+
+Values scale in $[0.0, 100.0]$, where higher scores indicate stronger semantic compliance.
 
 ---
 
 ## Usage Examples
 
-### Single Image Alignment
+### Single Image Evaluation
 
-Evaluate how closely an image follows a given text prompt:
+Evaluate text adherence for a single generated image:
 
     ```bash
-    image-evaluator --metrics clip \
-        --image sample.png \
-        --prompt "an astronaut riding a horse on mars"
+    image-evaluator --metrics clip             --image path/to/sample.png             --prompt "an astronaut riding a horse on mars"
 
     ```
 
@@ -285,21 +273,19 @@ Evaluate how closely an image follows a given text prompt:
 
     predictor = ClipScorePredictor()
     score = predictor.evaluate_clip_score(
-        image_path="sample.png",
+        image_path="path/to/sample.png",
         prompt="an astronaut riding a horse on mars"
     )
     print(f"CLIP Score: {score:.4f}")
 
     ```
 
-### Directory Batch Evaluation
+### Folder Evaluation Against Shared Prompt
 
-Evaluate an entire directory against a shared prompt:
+Evaluate all images in a folder against a single benchmark prompt:
 
     ```bash
-    image-evaluator --metrics clip \
-        --image path/to/images_dir/ \
-        --prompt "photorealistic landscape at sunset"
+    image-evaluator --metrics clip             --image path/to/folder/             --prompt "photorealistic portrait of a cyberpunk detective"
 
     ```
 
@@ -308,8 +294,8 @@ Evaluate an entire directory against a shared prompt:
 
     predictor = ClipScorePredictor()
     mean_score = predictor.evaluate_folder_clip_score(
-        folder_path="path/to/images_dir/",
-        prompt="photorealistic landscape at sunset"
+        folder_path="path/to/folder/",
+        prompt="photorealistic portrait of a cyberpunk detective"
     )
     print(f"Mean CLIP Score: {mean_score:.4f}")
 
@@ -317,86 +303,76 @@ Evaluate an entire directory against a shared prompt:
 
 ---
 
-# ArcFace (Subject Identity Fidelity)
+# PickScore
 
-> Face identity cosine distance evaluation via InsightFace buffalo_l 512-dimensional embeddings
+> Fine-tuned CLIP ViT-H-14 human preference reward scoring trained on the Pick-a-Pic benchmark
 
-ArcFace evaluates subject facial identity preservation across personalization, face-swapping, and subject-driven generation tasks. Powered by InsightFace `buffalo_l`, it extracts 512-dimensional deep facial representations and calculates the angular cosine distance between the generated subject and a ground-truth reference photo.
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics arcface` |
-| **Input Constraint** | Paired `--image` and `--reference` (files or directories with matching stems) |
-| **Output Type** | Continuous scalar float in `[0.0, 2.0]` |
-| **Direction** | **Lower is better** (< 0.40 indicates high identity consistency, 0.0 = identical face) |
-| **Backbone Model** | InsightFace `buffalo_l` (ResNet-50 / ArcFace loss) |
-| **Threshold Guidance** | Cosine distance < 0.40 indicates same identity; > 0.60 indicates identity drift |
+PickScore by Kirstain et al. (NeurIPS 2023) evaluates text-to-image synthesis quality against human subjective preferences. While standard CLIP evaluates objective semantic similarity, PickScore is fine-tuned on over 500,000 empirical human choices from the Pick-a-Pic dataset (`yuvalkirstain/PickScore_v1`), predicting which synthetic generation humans prefer.
 
 ---
 
-## Formulation
+## Benchmark Diagnostic Scale
 
-Let $\mathbf{f}_1, \mathbf{f}_2 \in \mathbb{R}^{512}$ be the $L_2$-normalized facial feature vectors:
+---
+
+## Parameter Contract
+
+---
+
+## Mathematical Formulation
+
+PickScore projects image $I$ and prompt $T$ through fine-tuned CLIP ViT-H-14 encoders into normalized 1024-dimensional space, computing a temperature-calibrated softmax preference logit:
 
 ```math
-\text{Distance}(\mathbf{f}_1, \mathbf{f}_2) = 1 - \frac{\mathbf{f}_1 \cdot \mathbf{f}_2}{\|\mathbf{f}_1\|_2 \|\mathbf{f}_2\|_2}
+s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}}(T)}{\|\Phi_{\text{image}}(I)\|_2 \|\Phi_{\text{text}}(T)\|_2}
 
 ```
 
-If multiple faces are detected, the detector automatically selects the dominant face based on bounding-box area and landmark confidence.
+On empirical test sets, real outputs typically score in $[15.0, 25.0]$. Higher values indicate stronger alignment with human aesthetic choices.
 
 ---
 
 ## Usage Examples
 
-### Single Pair Face Identity Check
+### Single Image Evaluation
 
-Verify whether an edited or generated portrait preserves the reference person's identity:
+Score human aesthetic preference against a target prompt:
 
     ```bash
-    image-evaluator --metrics arcface \
-        --reference real_face.png \
-        --image generated_face.png
+    image-evaluator --metrics pickscore             --image path/to/sample.png             --prompt "an oil painting of a cottage in the woods at twilight"
 
     ```
 
     ```python
-    from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+    from image_evaluator.pickscore_predictor import PickScorePredictor
 
-    predictor = ArcFaceDistPredictor()
-    distance = predictor.evaluate_arcface_distance(
-        reference_path="real_face.png",
-        generated_path="generated_face.png"
+    predictor = PickScorePredictor()
+    score = predictor.evaluate_pickscore(
+        image_path="path/to/sample.png",
+        prompt="an oil painting of a cottage in the woods at twilight"
     )
-    print(f"ArcFace Cosine Distance: {distance:.4f}")
-    print("Verdict: " + ("Same Identity" if distance < 0.45 else "Identity Drift Detected"))
+    print(f"PickScore Preference: {score:.4f}")
 
     ```
 
-### Directory Batch Evaluation
+### Comparative Candidate Ranking
 
-Evaluate facial identity preservation across pairs of images with matching stems:
+Compare multiple generated candidates to determine which one humans are most likely to select:
 
     ```bash
-    image-evaluator --metrics arcface \
-        --reference path/to/real_faces/ \
-        --image path/to/generated_faces/
+    image-evaluator --metrics pickscore             --image path/to/candidate_folder/             --prompt "portrait of an ancient warrior, detailed cinematic lighting"
 
     ```
 
     ```python
-    from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+    from image_evaluator.pickscore_predictor import PickScorePredictor
 
-    predictor = ArcFaceDistPredictor()
-    mean_dist = predictor.evaluate_folder_arcface_distance(
-        reference_folder="path/to/real_faces/",
-        generated_folder="path/to/generated_faces/"
+    predictor = PickScorePredictor()
+    mean_score = predictor.evaluate_folder_pickscore(
+        folder_path="path/to/candidate_folder/",
+        prompt="portrait of an ancient warrior, detailed cinematic lighting"
     )
-    print(f"Mean ArcFace Distance: {mean_dist:.4f}")
+    print(f"Mean Candidate PickScore: {mean_score:.4f}")
 
     ```
 
@@ -410,21 +386,17 @@ Learned Perceptual Image Patch Similarity (LPIPS) by Zhang et al. (CVPR 2018) ev
 
 ---
 
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics lpips` |
-| **Input Constraint** | Paired `--image` and `--reference` (identical spatial dimensions required) |
-| **Output Type** | Continuous scalar float in `[0.0, +inf)` |
-| **Direction** | **Lower is better** (0.0 represents identical perceptual features) |
-| **Backbone Architecture** | Official `lpips` v0.1 (AlexNet trunk) |
-| **Dynamic Range** | Normalized to `[-1.0, 1.0]` internally |
-| **Academic Citation** | Zhang et al., "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric", CVPR 2018 |
+## Benchmark Diagnostic Scale
 
 ---
 
-## Formulation
+## Parameter Contract
+
+  **Spatial Dimension Contract**: LPIPS strictly enforces that input pairs share identical dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly raises `ValueError` on size mismatch to prevent high-frequency interpolation artifacts.
+
+---
+
+## Mathematical Formulation
 
 LPIPS extracts feature activations across $L$ layers from reference $x$ and generated $x_0$. Within each layer $l$, feature channels are normalized by $L_2$ norm, scaled by learned vector $w_l$, and spatially averaged:
 
@@ -435,13 +407,6 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 
 ---
 
-## Input Shape Requirements
-
-- **No Silent Resizing**: Input pairs must strictly match in dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The engine strictly terminates with a `ValueError` on size mismatch to prevent high-frequency interpolation distortion.
-- **Exact Stem Alignment**: In directory mode, files pair strictly by case-sensitive stem across formats. Any unpaired file triggers an immediate halt.
-
----
-
 ## Usage Examples
 
 ### Single Pair Evaluation
@@ -449,9 +414,7 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 Measure deep perceptual distance between a generated sample and ground truth:
 
     ```bash
-    image-evaluator --metrics lpips \
-        --reference path/to/reference.png \
-        --image path/to/generated.png
+    image-evaluator --metrics lpips             --reference path/to/reference.png             --image path/to/generated.png
 
     ```
 
@@ -472,9 +435,7 @@ Measure deep perceptual distance between a generated sample and ground truth:
 Compute pairwise perceptual distance across directories of matching files:
 
     ```bash
-    image-evaluator --metrics lpips \
-        --reference path/to/reference_folder/ \
-        --image path/to/generated_folder/
+    image-evaluator --metrics lpips             --reference path/to/reference_folder/             --image path/to/generated_folder/
 
     ```
 
@@ -494,48 +455,50 @@ Compute pairwise perceptual distance across directories of matching files:
 
 # SSIM (Structural Similarity)
 
-> Structural Similarity Index Measure via 11x11 Gaussian window decomposition
+> Structural Similarity Index Measure computed across luminance, contrast, and structure
 
-The Structural Similarity Index Measure (SSIM) evaluates the structural degradation between two images. Developed by Wang et al. (IEEE TIP 2004), it decouples image similarity into luminance, contrast, and structural covariance across localized sliding Gaussian patches.
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics ssim` |
-| **Input Constraint** | Paired `--image` and `--reference` (dimensions $\ge 11 \times 11$) |
-| **Output Type** | Continuous float in `[-1.0, 1.0]` |
-| **Direction** | **Higher is better** (1.0 = identical structure) |
-| **Kernel Specification** | $11 \times 11$ Gaussian sliding window, $\sigma = 1.5$ |
-| **Multi-Channel Rule** | Computed independently per RGB channel, unweighted arithmetic mean returned |
+The Structural Similarity Index Measure (SSIM) by Wang et al. (IEEE TIP 2004) evaluates image degradation as perceived changes in structural information. While pixel MSE treats all deviations uniformly, SSIM separates visual differences into luminance, contrast, and structural correlation using local Gaussian window statistics.
 
 ---
 
-## Formulation
+## Benchmark Diagnostic Scale
 
-For local patches $x$ and $y$, SSIM evaluates:
+---
+
+## Parameter Contract
+
+  **Minimum Spatial Size Requirement**: Because SSIM computes statistics over an $11 \times 11$ Gaussian sliding window, both images must measure at least 11 pixels in height and width. Inputs smaller than 11 pixels raise a `ValueError`.
+
+---
+
+## Mathematical Formulation
+
+SSIM evaluates three components across local image patches $x$ and $y$:
+
+```math
+\text{SSIM}(x, y) = [l(x, y)]^\alpha \cdot [c(x, y)]^\beta \cdot [s(x, y)]^\gamma
+
+```
+
+Under standard unitary weighting ($\alpha = \beta = \gamma = 1$), this resolves to:
 
 ```math
 \text{SSIM}(x, y) = \frac{(2\mu_x \mu_y + C_1)(2\sigma_{xy} + C_2)}{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}
 
 ```
 
-where $C_1 = (K_1 L)^2, C_2 = (K_2 L)^2$ with $K_1 = 0.01, K_2 = 0.03, L = 1.0$.
+where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_1 = 0.01, K_2 = 0.03, L = 255$).
 
 ---
 
 ## Usage Examples
 
-### Single Pair SSIM
+### Single Pair Evaluation
 
-Measure structural statistical similarity between two registered images:
+Evaluate structural similarity between a generated image and original reference:
 
     ```bash
-    image-evaluator --metrics ssim \
-        --reference path/to/reference.png \
-        --image path/to/generated.png
+    image-evaluator --metrics ssim             --reference path/to/reference.png             --image path/to/generated.png
 
     ```
 
@@ -543,22 +506,20 @@ Measure structural statistical similarity between two registered images:
     from image_evaluator.ssim_predictor import SSIMPredictor
 
     predictor = SSIMPredictor()
-    similarity = predictor.evaluate_ssim(
+    score = predictor.evaluate_ssim(
         reference_path="path/to/reference.png",
         generated_path="path/to/generated.png"
     )
-    print(f"SSIM: {similarity:.4f}")
+    print(f"SSIM Score: {score:.4f}")
 
     ```
 
 ### Directory Batch Evaluation
 
-Compute pairwise mean structural similarity across directories:
+Compute mean SSIM across paired folders of images:
 
     ```bash
-    image-evaluator --metrics ssim \
-        --reference path/to/reference_folder/ \
-        --image path/to/generated_folder/
+    image-evaluator --metrics ssim             --reference path/to/reference_folder/             --image path/to/generated_folder/
 
     ```
 
@@ -566,11 +527,11 @@ Compute pairwise mean structural similarity across directories:
     from image_evaluator.ssim_predictor import SSIMPredictor
 
     predictor = SSIMPredictor()
-    mean_ssim = predictor.evaluate_folder_ssim(
+    mean_score = predictor.evaluate_folder_ssim(
         reference_folder="path/to/reference_folder/",
         generated_folder="path/to/generated_folder/"
     )
-    print(f"Mean SSIM: {mean_ssim:.4f}")
+    print(f"Mean SSIM: {mean_score:.4f}")
 
     ```
 
@@ -578,36 +539,35 @@ Compute pairwise mean structural similarity across directories:
 
 # PSNR (Peak Signal-to-Noise Ratio)
 
-> Pixel-level reconstruction fidelity computed from Mean Squared Error
+> Peak Signal-to-Noise Ratio (dB) computed from pixel-wise Mean Squared Error
 
-Peak Signal-to-Noise Ratio (PSNR) is the classical baseline metric in digital signal processing and image restoration. Measuring the ratio between maximum signal energy and reconstruction noise, it quantifies strict pixel-level ground-truth fidelity.
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics psnr` |
-| **Input Constraint** | Paired `--image` and `--reference` (exact matching spatial dimensions) |
-| **Output Type** | Logarithmic decibels (dB) in `[0.0, +inf)` |
-| **Direction** | **Higher is better** (typical high quality: 30-50 dB; identical: `+inf`) |
-| **Input Range** | Floats normalized to `[0.0, 1.0]`, $\text{MAX}_I = 1.0$ |
-| **Zero-MSE Behavior** | Strictly returns `float("inf")` when images are identical |
+Peak Signal-to-Noise Ratio (PSNR) evaluates the objective reconstruction fidelity of an image by measuring the ratio between the maximum possible pixel power and corrupting mean squared error (MSE). Expressed in decibels (dB), it serves as a foundational engineering baseline for image restoration, super-resolution, and codec compression.
 
 ---
 
-## Formulation
+## Benchmark Diagnostic Scale
 
-Given ground-truth $I$ and generated $K$ of dimensions $m \times n$:
+---
+
+## Parameter Contract
+
+  **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. While it provides mathematically exact noise metrics, a global color shift (e.g. slight warm tint) or a single-pixel spatial shift can drastically reduce PSNR while leaving perceived quality intact. Pair with **LPIPS** for holistic evaluation.
+
+---
+
+## Mathematical Formulation
+
+Given reference image $I$ and generated image $K$ of size $m \times n$:
 
 ```math
-\text{MSE} = \frac{1}{3mn} \sum_{c=1}^3 \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j, c) - K(i, j, c)]^2
+\text{MSE} = \frac{1}{mn} \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j) - K(i, j)]^2
 
 ```
 
+The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
+
 ```math
-\text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right)
+\text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right) = 20 \cdot \log_{10}(\text{MAX}_I) - 10 \cdot \log_{10}(\text{MSE})
 
 ```
 
@@ -615,14 +575,12 @@ Given ground-truth $I$ and generated $K$ of dimensions $m \times n$:
 
 ## Usage Examples
 
-### Single Pair PSNR
+### Single Pair Evaluation
 
-Evaluate reconstruction signal-to-noise ratio:
+Evaluate pixel-level reconstruction signal-to-noise ratio:
 
     ```bash
-    image-evaluator --metrics psnr \
-        --reference path/to/reference.png \
-        --image path/to/generated.png
+    image-evaluator --metrics psnr             --reference path/to/reference.png             --image path/to/generated.png
 
     ```
 
@@ -640,12 +598,10 @@ Evaluate reconstruction signal-to-noise ratio:
 
 ### Directory Batch Evaluation
 
-Compute pairwise mean PSNR across directories:
+Calculate mean PSNR across paired image directories:
 
     ```bash
-    image-evaluator --metrics psnr \
-        --reference path/to/reference_folder/ \
-        --image path/to/generated_folder/
+    image-evaluator --metrics psnr             --reference path/to/reference_folder/             --image path/to/generated_folder/
 
     ```
 
@@ -663,50 +619,128 @@ Compute pairwise mean PSNR across directories:
 
 ---
 
-# FID (Fréchet Inception Distance)
+# ArcFace Distance
 
-> Generative distribution distance evaluated in Inception-v3 pool3 feature space
+> Facial identity preservation using InsightFace buffalo_l 512-dimensional cosine feature distance
 
-Fréchet Inception Distance (FID), introduced by Heusel et al. (NeurIPS 2017), is the standard benchmark for evaluating the quality and diversity of generative models (GANs, Diffusion Models). It fits continuous multivariate Gaussians to deep feature representations extracted by Inception-v3 and computes the Wasserstein-2 distance between the real and generated distributions.
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics fid` |
-| **Input Constraint** | Two existing directories via `--image` and `--reference` |
-| **Output Type** | Continuous scalar float in `[0.0, +inf)` |
-| **Direction** | **Lower is better** (0.0 represents identical distributions) |
-| **Feature Layer** | Official Inception-v3 (2048-dimensional activations from `pool3`) |
-| **Sample Size Rule** | Biased estimator. Sample size $N \ge 2048$ strongly recommended for publication |
+ArcFace Distance (Deng et al., CVPR 2019) measures facial identity consistency between a generated portrait and a reference photo. By extracting 512-dimensional deep facial embeddings using InsightFace (`buffalo_l`), it computes normalized cosine feature distance. This is the gold-standard metric for evaluating identity retention in LoRA, InstantID, PhotoMaker, and DreamBooth personalized generation.
 
 ---
 
-## Formulation
+## Benchmark Diagnostic Scale
 
-Let $(\mu_r, \Sigma_r)$ and $(\mu_g, \Sigma_g)$ represent the empirical mean and covariance matrices of Inception-v3 pool3 feature representations:
+---
+
+## Parameter Contract
+
+  **Face Detection Prerequisite**: ArcFace requires successful face detection in **both** the reference and generated images via InsightFace RetinaFace (`buffalo_l`). If no face is detected in either image, the metric returns `None`.
+
+---
+
+## Mathematical Formulation
+
+The cosine distance between $L_2$-normalized 512-dimensional face embeddings $\mathbf{f}_1$ and $\mathbf{f}_2$ is defined as:
 
 ```math
-\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2} \right)
+\text{Distance}(\mathbf{f}_1, \mathbf{f}_2) = 1 - \frac{\mathbf{f}_1 \cdot \mathbf{f}_2}{\|\mathbf{f}_1\|_2 \|\mathbf{f}_2\|_2}
 
 ```
 
-The matrix square root $(\Sigma_r \Sigma_g)^{1/2}$ is resolved using robust Schur decomposition, with imaginary residuals eliminated if numerical conditioning issues arise.
+Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemblance ($0.0$ denotes exact mathematical identity).
 
 ---
 
 ## Usage Examples
 
-### Dataset Generative Distribution Evaluation
+### Single Pair Face Identity Evaluation
 
-Compute the FID score between a folder of synthesized samples and real reference data:
+Compare facial identity retention between generated output and real photo:
 
     ```bash
-    image-evaluator --metrics fid \
-        --reference path/to/real_dataset/ \
-        --image path/to/generated_dataset/
+    image-evaluator --metrics arcface             --reference path/to/reference_face.png             --image path/to/generated_face.png
+
+    ```
+
+    ```python
+    from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+    predictor = ArcFaceDistPredictor()
+    distance = predictor.evaluate_arcface(
+        reference_path="path/to/reference_face.png",
+        generated_path="path/to/generated_face.png"
+    )
+    print(f"ArcFace Distance: {distance:.4f}")
+
+    ```
+
+### Personalized Generation Benchmark
+
+Batch evaluate personalization testsets across folders:
+
+    ```bash
+    image-evaluator --metrics arcface             --reference path/to/reference_faces/             --image path/to/generated_faces/
+
+    ```
+
+    ```python
+    from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+    predictor = ArcFaceDistPredictor()
+    mean_dist = predictor.evaluate_folder_arcface(
+        reference_folder="path/to/reference_faces/",
+        generated_folder="path/to/generated_faces/"
+    )
+    print(f"Mean Face Distance: {mean_dist:.4f}")
+
+    ```
+
+---
+
+# FID (Fréchet Inception Distance)
+
+> Generative distribution distance evaluated in Inception-v3 pool3 feature space
+
+Fréchet Inception Distance (Heusel et al., NeurIPS 2017) measures the statistical distance between a generated image distribution and a real-world dataset. By fitting multivariate Gaussians to the 2048-dimensional `pool3` features of an Inception-v3 network, it assesses both visual realism and sample diversity.
+
+---
+
+## Benchmark Diagnostic Scale
+
+---
+
+## Directory Layout Contract
+
+FID requires directory inputs on both generated and reference sides. Unlike pairwise metrics, filenames do not need to match and sample counts may differ ($N_{\text{ref}} \neq N_{\text{gen}}$):
+
+    = 2048 recommended)" />
+
+    = 2048 recommended)" />
+
+  **Sample Size Bias Warning**: FID is a biased estimator. Evaluating with small sample sizes ($N < 2048$) systematically overestimates the true distribution distance and triggers a runtime warning. For sample sizes under 2000, consider using the unbiased **KID** metric instead.
+
+---
+
+## Mathematical Formulation
+
+The Wasserstein-2 distance between two multivariate Gaussians $(\mu_r, \Sigma_r)$ and $(\mu_g, \Sigma_g)$ is computed as:
+
+```math
+\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2\left(\Sigma_r \Sigma_g\right)^{1/2} \right)
+
+```
+
+Lower values indicate closer fidelity and diversity to the ground-truth distribution.
+
+---
+
+## Usage Examples
+
+### Dataset Distribution Evaluation
+
+Compute CleanFID between generated and ground-truth directories:
+
+    ```bash
+    image-evaluator --metrics fid             --reference path/to/real_images/             --image path/to/generated_images/
 
     ```
 
@@ -714,11 +748,11 @@ Compute the FID score between a folder of synthesized samples and real reference
     from image_evaluator.fid_predictor import FIDPredictor
 
     predictor = FIDPredictor()
-    fid_score = predictor.evaluate_fid(
-        reference_folder="path/to/real_dataset/",
-        generated_folder="path/to/generated_dataset/"
+    score = predictor.evaluate_fid(
+        reference_folder="path/to/real_images/",
+        generated_folder="path/to/generated_images/"
     )
-    print(f"FID Score: {fid_score:.4f}")
+    print(f"CleanFID Score: {score:.4f}")
 
     ```
 
@@ -726,53 +760,45 @@ Compute the FID score between a folder of synthesized samples and real reference
 
 # KID (Kernel Inception Distance)
 
-> Polynomial kernel Maximum Mean Discrepancy unbiased U-statistic for small-sample evaluation
+> Unbiased polynomial kernel maximum mean discrepancy (MMD) in Inception feature space
 
-Kernel Inception Distance (KID), proposed by Bińkowski et al. (ICLR 2018), measures generative distribution similarity using the squared Maximum Mean Discrepancy (MMD) with a polynomial kernel on Inception representations. Unlike FID, KID is an **unbiased estimator**, delivering statistically reliable benchmarks even on small subsets (e.g. 100 to 1000 samples).
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics kid` |
-| **Input Constraint** | Two directories via `--image` and `--reference` |
-| **Output Type** | Mean and standard deviation floats (e.g. `mean +/- std`) |
-| **Direction** | **Lower is better** (0.0 represents matching distributions) |
-| **Estimator Type** | Unbiased U-statistic (may yield minute negative values due to sample variance) |
-| **Resampling Strategy** | Repeated random subset sampling ($N=1000$ per fold) |
+Kernel Inception Distance (Bińkowski et al., ICLR 2018) is an unbiased metric for evaluating generative image distributions. Unlike FID, which fits a parametric Gaussian distribution and suffers from heavy small-sample bias, KID computes the squared Maximum Mean Discrepancy (MMD) with a cubic polynomial kernel via a U-statistic, providing reliable evaluation on subsets of 1,000 images or fewer.
 
 ---
 
-## Formulation
+## Benchmark Diagnostic Scale
 
-For Inception features $x, y \in \mathbb{R}^{2048}$, KID utilizes a cubic polynomial kernel:
+---
+
+## Dataset Directory Layout
+
+KID operates over directories of images. Like FID, filenames do not need to match and counts can differ:
+
+  **Small-Sample Unbiasedness & Negative Values**: Because the U-statistic is an unbiased estimator of squared MMD, sample variance around zero can yield small negative values (e.g. `-0.0004`). These reflect unbiased statistical variance and must **never** be manually clamped to zero.
+
+---
+
+## Mathematical Formulation
+
+KID computes MMD with a cubic polynomial kernel $k(x, y) = \left(\frac{1}{d} x^T y + 1\right)^3$ across Inception feature representations:
 
 ```math
-k(x, y) = \left( \frac{1}{d} x^T y + 1 \right)^3, \quad d = 2048
+\text{KID} = \text{MMD}^2(P_r, P_g) = \mathbb{E}[k(x, x')] + \mathbb{E}[k(y, y')] - 2\mathbb{E}[k(x, y)]
 
 ```
 
-The unbiased squared MMD U-statistic between sample batches $X$ and $Y$ of size $m$ is given by:
-
-```math
-\text{MMD}_u^2(X, Y) = \frac{1}{m(m-1)} \sum_{i \neq j}^m k(x_i, x_j) + \frac{1}{m(m-1)} \sum_{i \neq j}^m k(y_i, y_j) - \frac{2}{m^2} \sum_{i, j}^m k(x_i, y_j)
-
-```
+The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{Std}$. Lower values reflect superior fidelity.
 
 ---
 
 ## Usage Examples
 
-### Small-Sample Generative Distribution Evaluation
+### Dataset Distribution Evaluation
 
-Compute unbiased KID mean and standard deviation:
+Compute unbiased KID between generated and reference folders:
 
     ```bash
-    image-evaluator --metrics kid \
-        --reference path/to/real_dataset/ \
-        --image path/to/generated_dataset/
+    image-evaluator --metrics kid             --reference path/to/reference_dir/             --image path/to/generated_dir/
 
     ```
 
@@ -780,100 +806,11 @@ Compute unbiased KID mean and standard deviation:
     from image_evaluator.kid_predictor import KIDPredictor
 
     predictor = KIDPredictor()
-    mean_kid, std_kid = predictor.evaluate_folder_kid(
-        reference_folder="path/to/real_dataset/",
-        generated_folder="path/to/generated_dataset/"
+    mean_kid, std_kid = predictor.evaluate_kid(
+        reference_folder="path/to/reference_dir/",
+        generated_folder="path/to/generated_dir/"
     )
     print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
-
-    ```
-
----
-
-# PickScore (Human Preference Alignment)
-
-> Fine-tuned CLIP ViT-H-14 scoring model trained on large-scale human choice data
-
-PickScore, introduced by Kirstain et al. (NeurIPS 2023), measures how well generated images align with real-world human preferences. Fine-tuned on the large-scale Pick-a-Pic dataset containing over 500,000 empirical human choices, it goes beyond pure semantic coverage to capture visual aesthetics, artifact avoidance, and compositional balance.
-
----
-
-## Technical Specifications
-
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics pickscore` |
-| **Input Constraint** | `--image` and `--prompt` required |
-| **Output Type** | Continuous scalar float (higher indicates stronger human preference) |
-| **Direction** | **Higher is better** |
-| **Backbone Model** | Fine-tuned `yuvalkirstain/PickScore_v1` (based on OpenCLIP `ViT-H-14`) |
-| **Training Basis** | > 500k real user preference comparisons from Pick-a-Pic |
-
----
-
-## Formulation
-
-Given text prompt $y$ and candidate image $x$, PickScore computes the preference logit via normalized visual and textual embeddings:
-
-```math
-s(x, y) = \cos(\Phi_{\text{visual}}(x), \Phi_{\text{text}}(y))
-
-```
-
-The probability that image $x_1$ is preferred over $x_2$ given prompt $y$ models the Bradley-Terry choice probability:
-
-```math
-P(x_1 \succ x_2 \mid y) = \frac{\exp(s(x_1, y) / \tau)}{\exp(s(x_1, y) / \tau) + \exp(s(x_2, y) / \tau)}
-
-```
-
----
-
-## Usage Examples
-
-### Single Image Human Preference Score
-
-Evaluate synthetic image appeal against human preference standards:
-
-    ```bash
-    image-evaluator --metrics pickscore \
-        --image sample.png \
-        --prompt "a photorealistic oil painting of a cottage by a lake"
-
-    ```
-
-    ```python
-    from image_evaluator.pickscore_predictor import PickScorePredictor
-
-    predictor = PickScorePredictor()
-    score = predictor.evaluate_pickscore(
-        image_or_folder="sample.png",
-        prompt="a photorealistic oil painting of a cottage by a lake"
-    )
-    print(f"PickScore: {score:.4f}")
-
-    ```
-
-### Directory Batch Evaluation
-
-Evaluate an entire directory against a prompt:
-
-    ```bash
-    image-evaluator --metrics pickscore \
-        --image path/to/images_dir/ \
-        --prompt "cinematic lighting portrait of an elderly wizard"
-
-    ```
-
-    ```python
-    from image_evaluator.pickscore_predictor import PickScorePredictor
-
-    predictor = PickScorePredictor()
-    mean_score = predictor.evaluate_pickscore(
-        image_or_folder="path/to/images_dir/",
-        prompt="cinematic lighting portrait of an elderly wizard"
-    )
-    print(f"Mean PickScore: {mean_score:.4f}")
 
     ```
 

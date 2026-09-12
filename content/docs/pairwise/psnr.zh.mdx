@@ -1,55 +1,93 @@
 ---
 title: PSNR (峰值信噪比)
-description: 基于逐像素均方误差的底层物理级信号能量重构保真度
+description: 基于逐像素均方误差 (MSE) 的对数信噪比重构精度度量 (dB)
 ---
 
 # PSNR (峰值信噪比)
 
-峰值信噪比（Peak Signal-to-Noise Ratio，简称 PSNR）是数字信号处理、图像编码与底层图像恢复领域的底线基准指标。该指标通过均方误差（MSE）量化生成图像相对参考原图在每一个像素通道上的绝对能量差值。
+峰值信噪比 (Peak Signal-to-Noise Ratio) 是经典图像处理与计算机视觉领域中最基础的客观质量评价指标。它通过计算生成图片相对基准真值图的逐像素均方误差（MSE），得出信号最大可能功率与噪声功率的对数比值（以分贝 dB 为单位），广泛应用于图像重建、超分辨率及编码压缩质量基准。
 
 ---
 
-## 核心规格与指标特性
+## 指标诊断区间标尺
 
-| 参数维度 | 规范与技术事实 |
-| :--- | :--- |
-| **命令行参数** | `--metrics psnr` |
-| **输入约束** | 必须成对提供 `--image` 与 `--reference`（尺寸必须完全一致） |
-| **输出形式** | 位于区间 $$[0.0, +\infty)$$ 的分贝（dB）数值 |
-| **数值导向** | **越高越优**（高品质重构通常在 30-50 dB 之间；完全无损时为 `+inf`） |
-| **信号极大值** | 输入张量归一化至 $$[0.0, 1.0]$$，对应最大信号能量 $$\text{MAX}_I = 1.0$$ |
-| **零误差行为** | 当成对两图完全一致时，MSE = 0，系统严格返回 `float("inf")` |
+<MetricScale
+  min={15.0}
+  max={50.0}
+  unit=" dB"
+  direction="higher"
+  segments={[
+    { label: "极高像素保真", range: [35.0, 50.0], color: "emerald", note: "接近无损，像素级误差肉眼几乎不可见" },
+    { label: "标准有损编码", range: [25.0, 35.0], color: "amber", note: "主流 JPEG、WebP 压缩图库常见范围" },
+    { label: "严重像素劣化", range: [15.0, 25.0], color: "rose", note: "大范围噪点、剧烈色偏或重度模糊失真" }
+  ]}
+/>
 
 ---
 
-## 理论推导与数学形式
+## 接口参数契约
 
-设三通道 RGB 图像分辨率为 $m \times n$：
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "声明评测指标，必须包含 'psnr'。",
+      default: "必填"
+    },
+    "--image": {
+      type: "string (路径)",
+      description: "待测生成图像文件或目录路径。",
+      default: "必填"
+    },
+    "--reference": {
+      type: "string (路径)",
+      description: "基准参考图像文件或目录路径。",
+      default: "必填"
+    },
+    "--prompt": {
+      type: "string",
+      description: "成对像素评测禁止传入提示词。",
+      default: "禁止"
+    }
+  }}
+/>
+
+<Callout type="info">
+  **像素级敏感度陷阱**：PSNR 评估的是纯几何空间上的逐像素误差。全局轻微色温偏移（如整体微暖）或极微小的空间亚像素平移，都会导致 PSNR 显著暴跌，哪怕人眼主观感知依然清晰完好。建议与 **LPIPS**、**SSIM** 联合使用以进行多尺度综合判定。
+</Callout>
+
+---
+
+## 理论公式推导
+
+给定尺寸为 $m \times n$ 的参考图 $I$ 与生成图 $K$：
 
 ```math
-\text{MSE} = \frac{1}{3mn} \sum_{c=1}^3 \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j, c) - K(i, j, c)]^2
+\text{MSE} = \frac{1}{mn} \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j) - K(i, j)]^2
 ```
+
+当像素动态范围峰值 $\text{MAX}_I = 255.0$ 时，PSNR 计算公式为：
 
 ```math
 \text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right)
 ```
 
+单位为分贝（dB），分值越高代表像素重构质量越精准。
+
 ---
 
-## 调用范例 (CLI 与 Python API)
+## 调用示例
 
 <Steps>
   <Step>
-    ### 单对图像重构信噪比评测
+    ### 单对图像峰值信噪比计算
 
-    计算生成图像相对基准真值的重构分贝：
+    评估单张生成图片相对原图的像素级重构精度：
 
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics psnr \
-            --reference path/to/reference.png \
-            --image path/to/generated.png
+        image-evaluator --metrics psnr             --reference path/to/reference.png             --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -61,23 +99,21 @@ description: 基于逐像素均方误差的底层物理级信号能量重构保�
             reference_path="path/to/reference.png",
             generated_path="path/to/generated.png"
         )
-        print(f"PSNR 峰值信噪比: {psnr_val:.2f} dB")
+        print(f"PSNR: {psnr_val:.2f} dB")
         ```
       </Tab>
     </Tabs>
   </Step>
 
   <Step>
-    ### 目录批量逐对评测
+    ### 目录批量配对计算
 
-    对两个目录中同名文件逐对计算 PSNR 并统计均值：
+    批量评估两组目录的平均峰值信噪比：
 
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics psnr \
-            --reference path/to/reference_folder/ \
-            --image path/to/generated_folder/
+        image-evaluator --metrics psnr             --reference path/to/reference_folder/             --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -95,3 +131,4 @@ description: 基于逐像素均方误差的底层物理级信号能量重构保�
     </Tabs>
   </Step>
 </Steps>
+

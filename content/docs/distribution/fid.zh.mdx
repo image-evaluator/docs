@@ -1,51 +1,77 @@
 ---
-title: FID (弗雷歇感知距离)
-description: Inception-v3 特征空间高斯协方差二次型距离
+title: FID (弗雷歇距离)
+description: 基于 Inception-v3 pool3 特征空间高斯二阶统计量的生成分布距离评测
 ---
 
-# FID (弗雷歇感知距离)
+# FID (弗雷歇距离)
 
-弗雷歇初始距离（Fréchet Inception Distance，简称 FID）由 Martin Heusel 等人于 NeurIPS 2017 提出。它是度量生成对抗网络（GAN）与扩散模型（Diffusion Models）生成图像集合质量与多样性的学术界黄金标准。
-
----
-
-## 核心规格与指标特性
-
-| 参数维度 | 规范与技术事实 |
-| :--- | :--- |
-| **命令行参数** | `--metrics fid` |
-| **输入约束** | 双方输入 `--image` 与 `--reference` 必须均为包含图像的已存在文件夹 |
-| **输出形式** | 位于区间 $$[0.0, +\infty)$$ 的无量纲标量浮点数 |
-| **数值导向** | **越低越优**（数值越小代表生成图库与真实图库的分布越一致） |
-| **特征提取器** | 官方 Inception-v3 模型（倒数第二层 `pool3` 提取的 2048 维特征） |
-| **样本量约束** | 存在小样本正向偏差，学术严谨对比强烈建议样本量 $$N \ge 2048$$ |
+弗雷歇 Inception 距离 (Heusel et al., NeurIPS 2017) 用于评估生成图片群体与真实图片数据集之间的整体统计分布差异。该指标将真实图集与生成图集分别输入 Inception-v3 网络提取 2048 维 `pool3` 深层特征，拟合多元高斯分布并计算 Wasserstein-2 统计距离，能够同时反映生成样本的保真度与多样性（防模式崩塌）。
 
 ---
 
-## 理论推导与数学形式
+## 指标诊断区间标尺
 
-将真实图片集与生成图片集分别输入 Inception-v3，计算提取出的 2048 维特征向量的均值向量 $\mu_r, \mu_g$ 以及经验协方差矩阵 $\Sigma_r, \Sigma_g$：
+<MetricScale
+  min={0.0}
+  max={100.0}
+  unit=""
+  direction="lower"
+  segments={[
+    { label: "前沿生成质感", range: [0.0, 15.0], color: "emerald", note: "商业级生图质感、细节真实且分布覆盖多样" },
+    { label: "标准基准水平", range: [15.0, 40.0], color: "amber", note: "学术研究标准 Baseline 表现" },
+    { label: "模式崩塌或失真", range: [40.0, 100.0], color: "rose", note: "样本单一性严重、伪影频发或特征严重漂移" }
+  ]}
+/>
+
+---
+
+## 数据集目录组织规范
+
+FID 评测必须传入两个已存在的文件夹目录。与成对指标不同，两边无需文件名配对，图片数量亦可不相等 ($N_{\text{ref}} \neq N_{\text{gen}}$)：
+
+<Files>
+  <Folder name="real_dataset (真实参考库)" defaultOpen>
+    <File name="real_0001.png" />
+    <File name="real_0002.png" />
+    <File name="... (建议 >= 2048 张)" />
+  </Folder>
+  <Folder name="generated_dataset (生成待测库)" defaultOpen>
+    <File name="synth_0001.png" />
+    <File name="synth_0002.png" />
+    <File name="... (建议 >= 2048 张)" />
+  </Folder>
+</Files>
+
+<Callout type="warn">
+  **样本量有偏估计陷阱**：FID 属于有偏估计量，样本量过小 ($N < 2048$) 时会系统性虚高偏大，运行中会触发警告。当受测样本集小于 2000 张时，强烈建议使用无偏估计指标 **KID** 进行衡量。
+</Callout>
+
+---
+
+## 理论公式推导
+
+两个多元高斯分布 $(\mu_r, \Sigma_r)$ 与 $(\mu_g, \Sigma_g)$ 之间的弗雷歇距离公式为：
 
 ```math
-\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2} \right)
+\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2\left(\Sigma_r \Sigma_g\right)^{1/2} \right)
 ```
+
+分值越低，代表生成样本集的特征分布与真实样本集越接近。
 
 ---
 
-## 调用范例 (CLI 与 Python API)
+## 调用示例
 
 <Steps>
   <Step>
-    ### 数据集生成分布距离计算
+    ### 数据集群体分布距离计算
 
-    对比生成数据集与基准真实数据集的特征高斯距离：
+    计算生成图库与真实图库的 CleanFID 分值：
 
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics fid \
-            --reference path/to/real_dataset/ \
-            --image path/to/generated_dataset/
+        image-evaluator --metrics fid             --reference path/to/real_images/             --image path/to/generated_images/
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -53,13 +79,14 @@ description: Inception-v3 特征空间高斯协方差二次型距离
         from image_evaluator.fid_predictor import FIDPredictor
 
         predictor = FIDPredictor()
-        fid_score = predictor.evaluate_fid(
-            reference_folder="path/to/real_dataset/",
-            generated_folder="path/to/generated_dataset/"
+        score = predictor.evaluate_fid(
+            reference_folder="path/to/real_images/",
+            generated_folder="path/to/generated_images/"
         )
-        print(f"FID 分布距离: {fid_score:.4f}")
+        print(f"CleanFID 分布距离: {score:.4f}")
         ```
       </Tab>
     </Tabs>
   </Step>
 </Steps>
+

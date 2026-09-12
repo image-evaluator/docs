@@ -1,11 +1,13 @@
 {
-  "title": "文档中心",
+  "title": "技术文档",
   "pages": [
     "index",
-    "single-image",
+    "---评测体系---",
+    "no-reference",
+    "text-image",
     "pairwise",
     "distribution",
-    "preference",
+    "---实测演练---",
     "benchmark"
   ]
 }

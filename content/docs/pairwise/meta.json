@@ -1,8 +1,9 @@
 {
-  "title": "Pairwise Fidelity Triad",
+  "title": "Pairwise Comparison",
   "pages": [
     "lpips",
     "ssim",
-    "psnr"
+    "psnr",
+    "arcface"
   ]
 }

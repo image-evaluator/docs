@@ -1,0 +1,124 @@
+---
+title: PickScore (人类审美偏好对齐)
+description: 基于 Pick-a-Pic 真实人类成对反馈数据集微调的 CLIP ViT-H-14 偏好奖励打分模型
+---
+
+# PickScore (人类审美偏好对齐)
+
+PickScore (Kirstain et al., NeurIPS 2023) 专门用于评测文本生成图像在人类主观审美维度下的偏好程度。常规 CLIP 衡量的是客观图文特征几何距离，而 PickScore 在包含超 50 万条真实人类二选一打分数据的 Pick-a-Pic 数据集 (`yuvalkirstain/PickScore_v1`) 上进行了深度微调，能够直接预测人类评委更倾向选择哪张生成结果。
+
+---
+
+## 指标诊断区间标尺
+
+<MetricScale
+  min={10.0}
+  max={30.0}
+  unit=" 分 (Logit)"
+  direction="higher"
+  segments={[
+    { label: "极高人类偏好", range: [21.0, 30.0], color: "emerald", note: "高度符合人类审美、构图出众、无明显形变瑕疵" },
+    { label: "中位基准生成", range: [17.0, 21.0], color: "amber", note: "标准扩散模型平均表现，符合提示词但质感普通" },
+    { label: "人类明显倾向淘汰", range: [10.0, 17.0], color: "rose", note: "肢体崩坏、语义偏离、画面噪点或光影严重失真" }
+  ]}
+/>
+
+---
+
+## 接口参数契约
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "声明评测指标，必须包含 'pickscore'。",
+      default: "必填"
+    },
+    "--image": {
+      type: "string (路径)",
+      description: "待评测图片路径或候选图片文件夹路径。",
+      default: "必填"
+    },
+    "--prompt": {
+      type: "string",
+      description: "生成该图像所依据的文本提示词，必填。",
+      default: "必填"
+    },
+    "--reference": {
+      type: "string",
+      description: "人类偏好模型直接评估 (Image, Prompt)，禁止传入参考底图。",
+      default: "禁止"
+    }
+  }}
+/>
+
+---
+
+## 理论公式推导
+
+PickScore 使用经过人类反馈微调的 ViT-H-14 编码器，分别提取图像特征 $\Phi_{\text{image}}(I)$ 与文本特征 $\Phi_{\text{text}}(T)$，计算带温度缩放的对数几率评分：
+
+```math
+s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}}(T)}{\|\Phi_{\text{image}}(I)\|_2 \|\Phi_{\text{text}}(T)\|_2}
+```
+
+在主流生成测试集上，分值主要集中在 $[15.0, 25.0]$ 范围。数值越大，代表人类评测者偏好该生成图像的概率越高。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单张图像人类偏好评分
+
+    评估单张生成样本与提示词的人类偏好对齐度：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics pickscore             --image path/to/sample.png             --prompt "an oil painting of a cottage in the woods at twilight"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
+
+        predictor = PickScorePredictor()
+        score = predictor.evaluate_pickscore(
+            image_path="path/to/sample.png",
+            prompt="an oil painting of a cottage in the woods at twilight"
+        )
+        print(f"PickScore 人类偏好分: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 候选生成图库择优评测
+
+    批量计算候选生成图集的偏好得分以进行择优排序：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics pickscore             --image path/to/candidate_folder/             --prompt "portrait of an ancient warrior, detailed cinematic lighting"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
+
+        predictor = PickScorePredictor()
+        mean_score = predictor.evaluate_folder_pickscore(
+            folder_path="path/to/candidate_folder/",
+            prompt="portrait of an ancient warrior, detailed cinematic lighting"
+        )
+        print(f"候选集平均 PickScore: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+

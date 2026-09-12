@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { source } from '@/lib/source';
 import {
   DocsBody,
@@ -23,8 +24,27 @@ export default async function Page(props: {
 
   const MDX = page.data.body;
 
+  let lastModified: Date | undefined;
+  try {
+    if (page.data._file?.absolutePath && fs.existsSync(page.data._file.absolutePath)) {
+      lastModified = fs.statSync(page.data._file.absolutePath).mtime;
+    }
+  } catch {
+    lastModified = undefined;
+  }
+
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
+    <DocsPage
+      toc={page.data.toc}
+      full={page.data.full}
+      lastUpdate={lastModified}
+      editOnGithub={{
+        owner: 'image-evaluator',
+        repo: 'docs',
+        sha: 'main',
+        path: `content/docs/${page.data._file.path}`,
+      }}
+    >
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>

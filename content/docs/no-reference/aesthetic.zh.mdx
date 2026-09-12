@@ -1,0 +1,118 @@
+---
+title: Aesthetic (单图美学评分)
+description: 基于 OpenCLIP ViT-L-14 视觉特征与线性回归头的 LAION 视觉美学质量预测
+---
+
+# Aesthetic (单图美学评分)
+
+LAION Aesthetic 美学评估器用于度量单张图像的构图美学与视觉吸引力，全程无需任何参考底图。该模型通过 OpenCLIP `ViT-L-14` 骨干网络提取图像的归一化特征向量，输入经过 SAC (Simulacra Aesthetic Captions) 与 LAION-Aesthetics 真实人类审美标注微调的轻量级线性回归头输出评分。
+
+---
+
+## 指标诊断区间标尺
+
+<MetricScale
+  min={1.0}
+  max={10.0}
+  unit=" 分"
+  direction="higher"
+  segments={[
+    { label: "卓越美学质感", range: [6.5, 10.0], color: "emerald", note: "专业摄影级光影构图与优质生成" },
+    { label: "标准视觉质量", range: [4.5, 6.5], color: "amber", note: "日常自然照片与基准生成水平" },
+    { label: "质量严重劣变", range: [1.0, 4.5], color: "rose", note: "严重伪影、畸变、模糊或失衡构图" }
+  ]}
+/>
+
+---
+
+## 接口参数契约
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "声明评测指标，必须包含 'aesthetic'。",
+      default: "必填"
+    },
+    "--image": {
+      type: "string (路径)",
+      description: "待测单张图片文件路径或图片文件夹目录。",
+      default: "必填"
+    },
+    "--prompt": {
+      type: "string",
+      description: "美学评测为无参考任务，禁止传入该参数（传入报错）。",
+      default: "禁止"
+    },
+    "--reference": {
+      type: "string",
+      description: "美学评测无须配对参考图，禁止传入该参数。",
+      default: "禁止"
+    }
+  }}
+/>
+
+---
+
+## 理论公式推导
+
+美学模型首先使用图像编码器 $\Phi$ 提取 768 维归一化特征向量 $\mathbf{z}$，随后通过权重矩阵 $\mathbf{w}$ 与偏置项 $b$ 完成打分：
+
+```math
+s_{\text{aesthetic}} = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right) + b
+```
+
+该指标取值范围为 $[1.0, 10.0]$，分值越高代表模型判断的艺术美感越强。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单张图像美学评估
+
+    计算单张生成图像的美学分值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics aesthetic --image path/to/sample.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
+
+        predictor = LaionAiAestheticPredictor()
+        score = predictor.evaluate_aesthetic_score("path/to/sample.png")
+        print(f"美学评分: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 目录批量均值评测
+
+    批量评估生成图库并输出整体美学平均分：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics aesthetic --image path/to/folder/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
+
+        predictor = LaionAiAestheticPredictor()
+        mean_score = predictor.evaluate_folder_aesthetic_score("path/to/folder/")
+        print(f"图库平均美学分: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+

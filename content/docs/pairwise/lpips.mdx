@@ -9,34 +9,62 @@ Learned Perceptual Image Patch Similarity (LPIPS) by Zhang et al. (CVPR 2018) ev
 
 ---
 
-## Technical Specifications
+## Benchmark Diagnostic Scale
 
-| Parameter | Specification |
-| :--- | :--- |
-| **CLI Argument** | `--metrics lpips` |
-| **Input Constraint** | Paired `--image` and `--reference` (identical spatial dimensions required) |
-| **Output Type** | Continuous scalar float in `[0.0, +inf)` |
-| **Direction** | **Lower is better** (0.0 represents identical perceptual features) |
-| **Backbone Architecture** | Official `lpips` v0.1 (AlexNet trunk) |
-| **Dynamic Range** | Normalized to `[-1.0, 1.0]` internally |
-| **Academic Citation** | Zhang et al., "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric", CVPR 2018 |
+<MetricScale
+  min={0.0}
+  max={1.0}
+  unit=""
+  direction="lower"
+  segments={[
+    { label: "High Fidelity", range: [0.0, 0.15], color: "emerald", note: "Imperceptible perceptual difference against reference" },
+    { label: "Moderate Drift", range: [0.15, 0.35], color: "amber", note: "Noticeable style, texture, or fine detail shift" },
+    { label: "Heavy Distortion", range: [0.35, 1.0], color: "rose", note: "Severe structural corruption or semantic divergence" }
+  ]}
+/>
 
 ---
 
-## Formulation
+## Parameter Contract
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "Must include 'lpips'.",
+      default: "required"
+    },
+    "--image": {
+      type: "string (path)",
+      description: "Path to generated image file or folder.",
+      default: "required"
+    },
+    "--reference": {
+      type: "string (path)",
+      description: "Path to ground-truth reference image file or folder.",
+      default: "required"
+    },
+    "--prompt": {
+      type: "string",
+      description: "Not allowed for pairwise image fidelity.",
+      default: "none"
+    }
+  }}
+/>
+
+<Callout type="warn">
+  **Spatial Dimension Contract**: LPIPS strictly enforces that input pairs share identical dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly raises `ValueError` on size mismatch to prevent high-frequency interpolation artifacts.
+</Callout>
+
+---
+
+## Mathematical Formulation
 
 LPIPS extracts feature activations across $L$ layers from reference $x$ and generated $x_0$. Within each layer $l$, feature channels are normalized by $L_2$ norm, scaled by learned vector $w_l$, and spatially averaged:
 
 ```math
 d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y}^l_{hw} - \hat{y}_{0, hw}^l \right) \right\|_2^2
 ```
-
----
-
-## Input Shape Requirements
-
-- **No Silent Resizing**: Input pairs must strictly match in dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The engine strictly terminates with a `ValueError` on size mismatch to prevent high-frequency interpolation distortion.
-- **Exact Stem Alignment**: In directory mode, files pair strictly by case-sensitive stem across formats. Any unpaired file triggers an immediate halt.
 
 ---
 
@@ -51,9 +79,7 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics lpips \
-            --reference path/to/reference.png \
-            --image path/to/generated.png
+        image-evaluator --metrics lpips             --reference path/to/reference.png             --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API">
@@ -79,9 +105,7 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics lpips \
-            --reference path/to/reference_folder/ \
-            --image path/to/generated_folder/
+        image-evaluator --metrics lpips             --reference path/to/reference_folder/             --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API">
@@ -99,3 +123,4 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
     </Tabs>
   </Step>
 </Steps>
+

@@ -1,0 +1,118 @@
+---
+title: Aesthetic Score
+description: LAION aesthetic predictor using OpenCLIP ViT-L-14 visual embeddings and linear projection
+---
+
+# Aesthetic Score
+
+The LAION Aesthetic Predictor estimates the visual appeal and compositional beauty of a standalone image without requiring a ground-truth reference. It extracts normalized feature embeddings using OpenCLIP `ViT-L-14` and projects them through a lightweight linear head trained on the SAC (Simulacra Aesthetic Captions) and LAION-Aesthetics benchmark datasets.
+
+---
+
+## Benchmark Diagnostic Scale
+
+<MetricScale
+  min={1.0}
+  max={10.0}
+  unit=" / 10"
+  direction="higher"
+  segments={[
+    { label: "High Aesthetic", range: [6.5, 10.0], color: "emerald", note: "Professional photography & curated art" },
+    { label: "Acceptable", range: [4.5, 6.5], color: "amber", note: "Standard natural images & generation" },
+    { label: "Degraded Quality", range: [1.0, 4.5], color: "rose", note: "Severe blur, noise, or deformed composition" }
+  ]}
+/>
+
+---
+
+## Parameter Contract
+
+<TypeTable
+  type={{
+    "--metrics": {
+      type: "string",
+      description: "Must include 'aesthetic'.",
+      default: "required"
+    },
+    "--image": {
+      type: "string (path)",
+      description: "Path to input image file (.png, .jpg, .webp) or image directory.",
+      default: "required"
+    },
+    "--prompt": {
+      type: "string",
+      description: "Not allowed for aesthetic evaluation (raises error if provided).",
+      default: "none"
+    },
+    "--reference": {
+      type: "string",
+      description: "Not allowed for standalone aesthetic evaluation.",
+      default: "none"
+    }
+  }}
+/>
+
+---
+
+## Mathematical Formulation
+
+The predictor computes a 768-dimensional normalized visual embedding $\mathbf{z} \in \mathbb{R}^{768}$ from image $I$, followed by an affine projection with learned weights $\mathbf{w}$ and bias $b$:
+
+```math
+s_{\text{aesthetic}} = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right) + b
+```
+
+The resulting scalar output ranges in $[1.0, 10.0]$, where higher values reflect superior perceived artistic quality.
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Image Evaluation
+
+    Evaluate standalone visual appeal for a synthetic image:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics aesthetic --image path/to/sample.png
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
+
+        predictor = LaionAiAestheticPredictor()
+        score = predictor.evaluate_aesthetic_score("path/to/sample.png")
+        print(f"Aesthetic Score: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Batch Directory Evaluation
+
+    Compute the mean aesthetic score across an entire folder of generated outputs:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics aesthetic --image path/to/folder/
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
+
+        predictor = LaionAiAestheticPredictor()
+        mean_score = predictor.evaluate_folder_aesthetic_score("path/to/folder/")
+        print(f"Dataset Mean Aesthetic: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
