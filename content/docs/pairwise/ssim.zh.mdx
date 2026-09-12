@@ -9,52 +9,19 @@ description: 基于亮度、对比度与结构三要素局部高斯加权协方�
 
 ---
 
-## 指标诊断区间标尺
+## 核心规格
 
-<MetricScale
-  min={0.0}
-  max={1.0}
-  unit=""
-  direction="higher"
-  segments={[
-    { label: "高保真结构保持", range: [0.85, 1.0], color: "emerald", note: "边缘清晰、几何轮廓完好、微观结构高度一致" },
-    { label: "轻微模糊或压缩", range: [0.65, 0.85], color: "amber", note: "常见有损压缩伪影或轻度去噪平滑" },
-    { label: "严重结构破损", range: [0.0, 0.65], color: "rose", note: "线条撕裂、错位畸变或局部几何严重变形" }
-  ]}
-/>
-
----
-
-## 接口参数契约
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "声明评测指标，必须包含 'ssim'。",
-      default: "必填"
-    },
-    "--image": {
-      type: "string (路径)",
-      description: "待测生成图像文件或目录路径。",
-      default: "必填"
-    },
-    "--reference": {
-      type: "string (路径)",
-      description: "基准参考图像文件或目录路径。",
-      default: "必填"
-    },
-    "--prompt": {
-      type: "string",
-      description: "成对评测禁止传入提示词。",
-      default: "禁止"
-    }
-  }}
-/>
-
-<Callout type="warn">
-  **最小分辨率限制**：由于 SSIM 底层采用 $11 \times 11$ 的高斯平滑窗口进行局部统计，受测图像的宽和高必须均不小于 11 像素。任意维度小于 11 像素的图片将直接抛出 `ValueError`。
-</Callout>
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 成对结构保真度 (Pairwise Comparison) |
+| **命令行参数** | `--metrics ssim` |
+| **输入要求** | `--image <路径>`, `--reference <路径>` (两项皆必填) |
+| **禁止参数** | `--prompt` (成对评测禁止传入提示词) |
+| **最小尺寸限制** | 图像宽与高均必须 $\ge 11$ 像素 ($11 \times 11$ 高斯平滑窗) |
+| **标度范围** | 标量连续浮点数 `[-1.0, 1.0]` (1.0 代表结构完全一致) |
+| **取值方向** | **数值越高越优** |
+| **标准参数** | $11 \times 11$ 高斯窗, $\sigma=1.5, K_1=0.01, K_2=0.03, L=255$ |
+| **权威源** | [scikit-image](https://scikit-image.org/) / [Wang et al., 2004](https://ieeexplore.ieee.org/document/1284395) |
 
 ---
 
@@ -70,6 +37,14 @@ description: 基于亮度、对比度与结构三要素局部高斯加权协方�
 
 ---
 
+## 评测阈值与解读建议
+
+- **基准分位参考**：分值达到 $0.85$ 以上代表边缘结构、几何轮廓完好保持；$0.65$ 至 $0.85$ 之间代表存在明显的去噪平滑或有损压缩；低于 $0.65$ 代表线条错位、伪影撕裂严重。
+- **11 像素硬约束**：受测图像的宽和高必须均不小于 11 像素。任意维度小于 11 像素的图片将直接抛出 `ValueError`。
+- **空间互补性**：SSIM 善于发现轮廓线条层面的破损，推荐与具备深层语义感知能力的 **LPIPS** 联合分析。
+
+---
+
 ## 调用示例
 
 <Steps>
@@ -81,7 +56,9 @@ description: 基于亮度、对比度与结构三要素局部高斯加权协方�
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics ssim             --reference path/to/reference.png             --image path/to/generated.png
+        image-evaluator --metrics ssim \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -107,7 +84,9 @@ description: 基于亮度、对比度与结构三要素局部高斯加权协方�
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics ssim             --reference path/to/reference_folder/             --image path/to/generated_folder/
+        image-evaluator --metrics ssim \
+            --reference path/to/reference_folder/ \
+            --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -125,4 +104,11 @@ description: 基于亮度、对比度与结构三要素局部高斯加权协方�
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## 参考文献与项目源
+
+- **奠基论文**: Wang et al., 2004, *Image Quality Assessment: From Error Visibility to Structural Similarity* (IEEE Transactions on Image Processing, [DOI:10.1109/TIP.2003.819861](https://doi.org/10.1109/TIP.2003.819861))
+- **作者权威主页**: [Zhou Wang Image Quality Research](https://ece.uwaterloo.ca/~z70wang/research/ssim/)
 

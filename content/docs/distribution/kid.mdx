@@ -9,19 +9,31 @@ Kernel Inception Distance (Bińkowski et al., ICLR 2018) is an unbiased metric f
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
-<MetricScale
-  min={-0.005}
-  max={0.08}
-  unit=""
-  direction="lower"
-  segments={[
-    { label: "Optimal Distribution", range: [-0.005, 0.005], color: "emerald", note: "Distribution shift near theoretical zero" },
-    { label: "Acceptable Divergence", range: [0.005, 0.025], color: "amber", note: "Standard generative divergence" },
-    { label: "Severe Mismatch", range: [0.025, 0.08], color: "rose", note: "High distribution discrepancy or mode failure" }
-  ]}
-/>
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Unbiased Dataset Distribution Distance |
+| **CLI Metric** | `kid` |
+| **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
+| **Prohibited Options** | Single image file paths, `--prompt` |
+| **Small Sample Robust** | Unbiased on subsets of $100 - 1000$ samples |
+| **Output Scale** | U-statistic scalar, typically $[-0.01, 0.10]$ (reported as $\text{Mean} \pm \text{Std}$) |
+| **Direction** | **Lower is better** |
+| **Kernel Type** | Cubic polynomial $k(x, y) = (x^T y / d + 1)^3$ on Inception features |
+| **Upstream Source** | [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid) |
+
+---
+
+## Mathematical Formulation
+
+KID computes MMD with a cubic polynomial kernel $k(x, y) = \left(\frac{1}{d} x^T y + 1\right)^3$ across Inception feature representations:
+
+```math
+\text{KID} = \text{MMD}^2(P_r, P_g) = \mathbb{E}[k(x, x')] + \mathbb{E}[k(y, y')] - 2\mathbb{E}[k(x, y)]
+```
+
+The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{Std}$. Lower values reflect superior fidelity.
 
 ---
 
@@ -46,18 +58,6 @@ KID operates over directories of images. Like FID, filenames do not need to matc
 
 ---
 
-## Mathematical Formulation
-
-KID computes MMD with a cubic polynomial kernel $k(x, y) = \left(\frac{1}{d} x^T y + 1\right)^3$ across Inception feature representations:
-
-```math
-\text{KID} = \text{MMD}^2(P_r, P_g) = \mathbb{E}[k(x, x')] + \mathbb{E}[k(y, y')] - 2\mathbb{E}[k(x, y)]
-```
-
-The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{Std}$. Lower values reflect superior fidelity.
-
----
-
 ## Usage Examples
 
 <Steps>
@@ -69,7 +69,9 @@ The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{St
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics kid             --reference path/to/reference_dir/             --image path/to/generated_dir/
+        image-evaluator --metrics kid \
+            --reference path/to/reference_dir/ \
+            --image path/to/generated_dir/
         ```
       </Tab>
       <Tab value="Python API">
@@ -87,4 +89,11 @@ The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{St
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## References
+
+- **Paper**: Bińkowski et al., 2018, *Demystifying MMD GANs* (ICLR 2018, [arXiv:1801.01401](https://arxiv.org/abs/1801.01401))
+- **Implementation**: [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid)
 

@@ -1,9 +1,9 @@
 ---
-title: 概览与快速开始
+title: 快速开始
 description: 统一图像质量与多维对齐评估套件
 ---
 
-# 概览与快速开始
+# 快速开始
 
 `image-evaluator` 是一套面向生成式人工智能研究员与工程实践者的轻量级统一评估套件。该工具在统一的接口规范下，系统性覆盖了生成图像质量的**九大核心评估维度**：单图视觉美学质量预测、文本图像跨模态语义对齐、主体人脸身份保真度、成对图像保真度三元组（深度感知特征距离、结构统计相似度、峰值信噪比）、数据集分布保真度（双特征空间弗雷歇距离与核感知距离）以及人类主观偏好对齐评分。
 
@@ -13,19 +13,17 @@ description: 统一图像质量与多维对齐评估套件
 
 本套件严格基于评测输入参数契约，将九项核心指标划分为四大体系：
 
-| 评测类别 | 指标名称 | 必填参数选项 | 核心机制与特征空间 | 取值方向 | 对应文档 |
+| 评测类别 | 指标名称 | 必填参数选项 | 标度范围 | 取值方向 | 对应文档 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **单图无参考质量** | `aesthetic` | `--image` | OpenCLIP `ViT-L-14` + 线性回归打分头 | 数值越高越优 | [Aesthetic (单图美学)](/zh/no-reference/aesthetic) |
-| **跨模态图文对齐** | `clip` | `--image`, `--prompt` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [CLIP Score (图文对齐)](/zh/text-image/clip) |
-| **跨模态图文对齐** | `pickscore` | `--image`, `--prompt` | CLIP ViT-H-14 大规模人类真实偏好对齐打分 | 数值越高越优 | [PickScore (偏好对齐)](/zh/text-image/pickscore) |
-| **成对保真与主体** | `lpips` | `--image`, `--reference` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [LPIPS (深度感知)](/zh/pairwise/lpips) |
-| **成对保真与主体** | `ssim` | `--image`, `--reference` | $11 \times 11$ 高斯局部加权结构相似度 | 数值越高越优 | [SSIM (结构相似)](/zh/pairwise/ssim) |
-| **成对保真与主体** | `psnr` | `--image`, `--reference` | 逐像素均方误差对数信噪比 (dB) | 数值越高越优 | [PSNR (峰值信噪比)](/zh/pairwise/psnr) |
-| **成对保真与主体** | `arcface` | `--image`, `--reference` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [ArcFace (主体保真)](/zh/pairwise/arcface) |
-| **群体生成分布差异** | `fid` | `--image <dir>`, `--reference <dir>` | Inception-v3 pool3 特征二阶高斯统计距离 | 数值越低越优 | [FID (弗雷歇距离)](/zh/distribution/fid) |
-| **群体生成分布差异** | `kid` | `--image <dir>`, `--reference <dir>` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [KID (核最大均值)](/zh/distribution/kid) |
-
-<EvaluationWorkflow lang="zh" />
+| **单图无参考质量** | `aesthetic` | `--image` | `[1.0, 10.0]` | 数值越高越优 | [Aesthetic (单图美学)](/zh/no-reference/aesthetic) |
+| **跨模态图文对齐** | `clip` | `--image`, `--prompt` | `[0.0, 100.0]` | 数值越高越优 | [CLIP Score (图文对齐)](/zh/text-image/clip) |
+| **跨模态图文对齐** | `pickscore` | `--image`, `--prompt` | Logits $\approx [15, 25]$ | 数值越高越优 | [PickScore (偏好对齐)](/zh/text-image/pickscore) |
+| **成对保真与主体** | `lpips` | `--image`, `--reference` | `[0.0, +inf)` | 数值越低越优 | [LPIPS (深度感知)](/zh/pairwise/lpips) |
+| **成对保真与主体** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [SSIM (结构相似)](/zh/pairwise/ssim) |
+| **成对保真与主体** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | 数值越高越优 | [PSNR (峰值信噪比)](/zh/pairwise/psnr) |
+| **成对保真与主体** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | 数值越低越优 | [ArcFace (主体保真)](/zh/pairwise/arcface) |
+| **群体生成分布差异** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | 数值越低越优 | [FID (弗雷歇距离)](/zh/distribution/fid) |
+| **群体生成分布差异** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | 数值越低越优 | [KID (核最大均值)](/zh/distribution/kid) |
 
 ---
 
@@ -41,7 +39,7 @@ description: 统一图像质量与多维对齐评估套件
 
 ---
 
-## 快速开始
+## 快速开始教程
 
 <Steps>
   <Step>
@@ -172,20 +170,3 @@ description: 统一图像质量与多维对齐评估套件
   </Step>
 </Steps>
 
----
-
-## 核心架构原则
-
-<Accordions>
-  <Accordion title="延迟加载架构与零显存泄漏">
-    本套件采用按需初始化设计，仅加载命令行 `--metrics` 中显式声明的计算模型与权重。未选用的重量级模型（例如近 10 亿参数的 PickScore 或人脸识别 InsightFace）在运行期间零初始化、零内存占用，有效防止长周期批量任务中的显存泄漏。
-  </Accordion>
-
-  <Accordion title="严格空间几何对齐与快速失败">
-    成对指标严格要求输入两图空间尺寸完全一致 ($H_{\text{ref}} = H_{\text{gen}}$ 且 $W_{\text{ref}} = W_{\text{gen}}$)。底层绝不进行隐式双线性插值缩放，确保测试指标完全不受重采样伪影干扰。
-  </Accordion>
-
-  <Accordion title="硬件加速与多平台支持">
-    原生支持 Linux (CUDA 加速与 CPU)、macOS (Apple Silicon Metal MPS 与 CPU)。系统自动探测最佳运行设备，无需繁琐的设备配置代码。
-  </Accordion>
-</Accordions>

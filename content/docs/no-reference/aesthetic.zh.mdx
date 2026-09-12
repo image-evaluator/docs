@@ -9,48 +9,18 @@ LAION Aesthetic 美学评估器用于度量单张图像的构图美学与视觉�
 
 ---
 
-## 指标诊断区间标尺
+## 核心规格
 
-<MetricScale
-  min={1.0}
-  max={10.0}
-  unit=" 分"
-  direction="higher"
-  segments={[
-    { label: "卓越美学质感", range: [6.5, 10.0], color: "emerald", note: "专业摄影级光影构图与优质生成" },
-    { label: "标准视觉质量", range: [4.5, 6.5], color: "amber", note: "日常自然照片与基准生成水平" },
-    { label: "质量严重劣变", range: [1.0, 4.5], color: "rose", note: "严重伪影、畸变、模糊或失衡构图" }
-  ]}
-/>
-
----
-
-## 接口参数契约
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "声明评测指标，必须包含 'aesthetic'。",
-      default: "必填"
-    },
-    "--image": {
-      type: "string (路径)",
-      description: "待测单张图片文件路径或图片文件夹目录。",
-      default: "必填"
-    },
-    "--prompt": {
-      type: "string",
-      description: "美学评测为无参考任务，禁止传入该参数（传入报错）。",
-      default: "禁止"
-    },
-    "--reference": {
-      type: "string",
-      description: "美学评测无须配对参考图，禁止传入该参数。",
-      default: "禁止"
-    }
-  }}
-/>
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 单图无参考质量 (No-Reference Quality) |
+| **命令行参数** | `--metrics aesthetic` |
+| **输入要求** | `--image <路径>` (单图或图片目录) |
+| **禁止参数** | `--reference`, `--prompt` (传入将直接报错) |
+| **标度范围** | 标量连续浮点数 `[1.0, 10.0]` |
+| **取值方向** | **数值越高越优** |
+| **骨干网络** | OpenCLIP `ViT-L-14` + SAC 线性打分头 |
+| **权威源** | [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor) |
 
 ---
 
@@ -63,6 +33,14 @@ s_{\text{aesthetic}} = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right)
 ```
 
 该指标取值范围为 $[1.0, 10.0]$，分值越高代表模型判断的艺术美感越强。
+
+---
+
+## 评测阈值与解读建议
+
+- **分布区间参考**：在自然摄影与通用图库上，普通自然照片分值多落在 $4.5$ 至 $6.0$ 之间；高品质专业摄影作品与优质精选生成图通常达到 $6.5$ 分以上。
+- **无参考限制**：该指标独立评测图像构图，不感知任何文字提示词。若需评估图片对提示词的还原度，请联合使用 **CLIP** 或 **PickScore**。
+- **基准一致性**：不同实验对比时，必须保证运行在同一套 OpenCLIP ViT-L-14 预训练权重之下。
 
 ---
 
@@ -115,4 +93,12 @@ s_{\text{aesthetic}} = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right)
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## 参考文献与项目源
+
+- **官方模型仓库**: [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor)
+- **训练数据发布**: Schuhmann et al., 2022, *LAION-Aesthetics: Predictor Training and Datasets* ([LAION Blog](https://laion.ai/blog/laion-aesthetics/))
+- **骨干网络实现**: Ilharco et al., 2021, *OpenCLIP* ([GitHub 仓库](https://github.com/mlfoundations/open_clip))
 

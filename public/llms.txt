@@ -2,7 +2,7 @@
 > 生产级多维图像生成评测工具库，覆盖美学质量、语义对齐、主体保真、成对失真、分布差异与人类偏好 9 大核心评测指标。
 
 ## 文档索引
-- [Quickstart](/): Production-grade multidimensional evaluation toolkit for AI image generation
+- [Quickstart](/): Lightweight unified evaluation toolkit for generative image quality and alignment
 - [Aesthetic Score](/no-reference/aesthetic): LAION aesthetic predictor using OpenCLIP ViT-L-14 visual embeddings and linear projection
 - [CLIP Score](/text-image/clip): Text-to-image cross-modal semantic cosine alignment using CLIP ViT-B/32
 - [PickScore](/text-image/pickscore): Fine-tuned CLIP ViT-H-14 human preference reward scoring trained on the Pick-a-Pic benchmark

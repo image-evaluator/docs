@@ -5,9 +5,9 @@
 
 # Quickstart
 
-> Production-grade multidimensional evaluation toolkit for AI image generation
+> Lightweight unified evaluation toolkit for generative image quality and alignment
 
-`image-evaluator` is a production-grade, lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
+`image-evaluator` is a lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
 
 ---
 
@@ -15,17 +15,17 @@
 
 The toolkit structures its nine core metrics across four functional dimensions based on evaluation input interface:
 
-| Category | Metric | Input Options | Feature Space | Direction | Documentation |
+| Category | Metric | Required Options | Output Scale | Direction | Documentation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **No-Reference Quality** | `aesthetic` | `--image` | OpenCLIP `ViT-L-14` + linear head | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
-| **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | CLIP `clip-vit-base-patch32` cosine | Higher is better | [CLIP Score](/text-image/clip) |
-| **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Fine-tuned CLIP ViT-H-14 logits | Higher is better | [PickScore](/text-image/pickscore) |
-| **Pairwise Comparison** | `lpips` | `--image`, `--reference` | AlexNet deep multi-scale features | Lower is better | [LPIPS Distance](/pairwise/lpips) |
-| **Pairwise Comparison** | `ssim` | `--image`, `--reference` | $11 \times 11$ Gaussian sliding window | Higher is better | [SSIM Similarity](/pairwise/ssim) |
-| **Pairwise Comparison** | `psnr` | `--image`, `--reference` | Mean Squared Error logarithmic SNR | Higher is better | [PSNR Ratio](/pairwise/psnr) |
-| **Pairwise Comparison** | `arcface` | `--image`, `--reference` | InsightFace `buffalo_l` 512-dim | Lower is better | [ArcFace Distance](/pairwise/arcface) |
-| **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | Inception-v3 pool3 Gaussian quadratic | Lower is better | [FID Score](/distribution/fid) |
-| **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | Polynomial kernel MMD U-statistic | Lower is better | [KID Score](/distribution/kid) |
+| **No-Reference Quality** | `aesthetic` | `--image` | `[1.0, 10.0]` | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
+| **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | `[0.0, 100.0]` | Higher is better | [CLIP Score](/text-image/clip) |
+| **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Logits $\approx [15, 25]$ | Higher is better | [PickScore](/text-image/pickscore) |
+| **Pairwise Comparison** | `lpips` | `--image`, `--reference` | `[0.0, +inf)` | Lower is better | [LPIPS Distance](/pairwise/lpips) |
+| **Pairwise Comparison** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [SSIM Similarity](/pairwise/ssim) |
+| **Pairwise Comparison** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | Higher is better | [PSNR Ratio](/pairwise/psnr) |
+| **Pairwise Comparison** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | Lower is better | [ArcFace Distance](/pairwise/arcface) |
+| **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | Lower is better | [FID Score](/distribution/fid) |
+| **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | Lower is better | [KID Score](/distribution/kid) |
 
 ---
 
@@ -33,7 +33,7 @@ The toolkit structures its nine core metrics across four functional dimensions b
 
 ---
 
-## Quickstart
+## Quickstart Tutorial
 
 ### Environment Installation
 
@@ -143,22 +143,6 @@ Compare feature distribution shifts between generated and ground-truth directori
 
 ---
 
-## Architectural Principles
-
-### Lazy Loading Model Weights
-
-The engine initializes only the models explicitly declared in `--metrics`. Weight caches and intermediate tensors are strictly scoped. Unselected heavy models (such as InsightFace or PickScore ViT-H-14) remain completely unloaded, preserving host RAM and GPU VRAM during long-running pipelines.
-
-### Strict Spatial Alignment Verification
-
-Pairwise metrics enforce an absolute dimension check ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly rejects silent interpolation or resizing, guaranteeing that resolution scaling artifacts never contaminate deep perceptual measurements.
-
-### Hardware Acceleration Across Platforms
-
-Native support across Linux (CUDA acceleration, CPU fallback) and macOS (Apple Silicon Metal MPS, CPU). Automatic device resolution dynamically optimizes batch throughput without manual torch device configuration.
-
----
-
 # Aesthetic Score
 
 > LAION aesthetic predictor using OpenCLIP ViT-L-14 visual embeddings and linear projection
@@ -167,11 +151,18 @@ The LAION Aesthetic Predictor estimates the visual appeal and compositional beau
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Parameter Contract
+| Property | Specification |
+| :--- | :--- |
+| **Category** | No-Reference Image Quality |
+| **CLI Metric** | `aesthetic` |
+| **Input Options** | `--image <file_or_dir>` (required) |
+| **Prohibited Options** | `--reference`, `--prompt` |
+| **Output Scale** | Continuous scalar float in `[1.0, 10.0]` |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | OpenCLIP `ViT-L-14` + linear MLP regression head |
+| **Upstream Source** | [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor) |
 
 ---
 
@@ -185,6 +176,14 @@ s_{\text{aesthetic}} = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right)
 ```
 
 The resulting scalar output ranges in $[1.0, 10.0]$, where higher values reflect superior perceived artistic quality.
+
+---
+
+## Interpretation & Guidance
+
+- **Score Distribution**: On general web and natural photography benchmarks, typical photos score between $4.5$ and $6.0$. High-grade professional photography and curated artwork typically score above $6.5$.
+- **No Ground-Truth Required**: Evaluates the image in isolation, ignoring semantic alignment with any prompt. Pair with **CLIP** or **PickScore** to assess prompt adherence.
+- **Protocol Consistency**: Compare aesthetic scores only between models evaluated under the identical OpenCLIP ViT-L-14 backbone weights.
 
 ---
 
@@ -228,6 +227,14 @@ Compute the mean aesthetic score across an entire folder of generated outputs:
 
 ---
 
+## References
+
+- **Model Repository**: [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor)
+- **Dataset**: Schuhmann et al., 2022, *LAION-Aesthetics: Predictor Training and Datasets* ([LAION Blog](https://laion.ai/blog/laion-aesthetics/))
+- **Backbone**: Ilharco et al., 2021, *OpenCLIP* ([GitHub Repository](https://github.com/mlfoundations/open_clip))
+
+---
+
 # CLIP Score
 
 > Text-to-image cross-modal semantic cosine alignment using CLIP ViT-B/32
@@ -236,11 +243,18 @@ CLIP Score by Hessel et al. (EMNLP 2021) evaluates the semantic consistency betw
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Parameter Contract
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Cross-Modal Text-to-Image Alignment |
+| **CLI Metric** | `clip` |
+| **Input Options** | `--image <file_or_dir>`, `--prompt "<text_or_file>"` (both required) |
+| **Prohibited Options** | `--reference` (not applicable for text-to-image alignment) |
+| **Output Scale** | Continuous scalar in `[0.0, 100.0]` |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | OpenAI CLIP `clip-vit-base-patch32` |
+| **Upstream Source** | [openai/CLIP](https://github.com/openai/CLIP) |
 
 ---
 
@@ -249,11 +263,19 @@ CLIP Score by Hessel et al. (EMNLP 2021) evaluates the semantic consistency betw
 Given an image $I$ and prompt text $T$, the image encoder $\mathbf{E}_I$ and text encoder $\mathbf{E}_T$ produce $L_2$-normalized embeddings. The score is computed as:
 
 ```math
-\text{CLIP}(I, T) = \max\left( 100 \cdot \cos(\mathbf{e}_I, \mathbf{e}_T), 0 \right) = 100 \cdot \max\left( \frac{\mathbf{E}_I(I) \cdot \mathbf{E}_T(T)}{\|\mathbf{E}_I(I)\|_2 \|\mathbf{E}_T(T)\|_2}, 0 \right)
+\text{CLIP}(I, T) = 100 \cdot \max\left( \frac{\mathbf{E}_I(I) \cdot \mathbf{E}_T(T)}{\|\mathbf{E}_I(I)\|_2 \|\mathbf{E}_T(T)\|_2}, 0 \right)
 
 ```
 
 Values scale in $[0.0, 100.0]$, where higher scores indicate stronger semantic compliance.
+
+---
+
+## Interpretation & Guidance
+
+- **Benchmark Scores**: Typical diffusion outputs (Stable Diffusion, Midjourney) on MS-COCO prompts score between $25.0$ and $33.0$. Scores above $30.0$ denote high semantic fidelity.
+- **Lexical Overlap Sensitivity**: CLIP evaluates high-level visual semantic features. Negations (e.g. *"a cat without hat"*) and spatial relations (*"cube on top of cylinder"*) remain known challenge areas.
+- **Combined Evaluation**: Pair with **PickScore** to measure both objective semantic alignment and subjective aesthetic preference.
 
 ---
 
@@ -264,7 +286,9 @@ Values scale in $[0.0, 100.0]$, where higher scores indicate stronger semantic c
 Evaluate text adherence for a single generated image:
 
     ```bash
-    image-evaluator --metrics clip             --image path/to/sample.png             --prompt "an astronaut riding a horse on mars"
+    image-evaluator --metrics clip \
+        --image path/to/sample.png \
+        --prompt "an astronaut riding a horse on mars"
 
     ```
 
@@ -285,7 +309,9 @@ Evaluate text adherence for a single generated image:
 Evaluate all images in a folder against a single benchmark prompt:
 
     ```bash
-    image-evaluator --metrics clip             --image path/to/folder/             --prompt "photorealistic portrait of a cyberpunk detective"
+    image-evaluator --metrics clip \
+        --image path/to/folder/ \
+        --prompt "photorealistic portrait of a cyberpunk detective"
 
     ```
 
@@ -303,6 +329,14 @@ Evaluate all images in a folder against a single benchmark prompt:
 
 ---
 
+## References
+
+- **Paper**: Hessel et al., 2021, *CLIPScore: A Reference-free Evaluation Metric for Image Captioning* (EMNLP 2021, [arXiv:2104.08718](https://arxiv.org/abs/2104.08718))
+- **Model & Implementation**: [openai/CLIP](https://github.com/openai/CLIP)
+- **Foundation Paper**: Radford et al., 2021, *Learning Transferable Visual Models From Natural Language Supervision* (ICML 2021, [arXiv:2103.00020](https://arxiv.org/abs/2103.00020))
+
+---
+
 # PickScore
 
 > Fine-tuned CLIP ViT-H-14 human preference reward scoring trained on the Pick-a-Pic benchmark
@@ -311,11 +345,18 @@ PickScore by Kirstain et al. (NeurIPS 2023) evaluates text-to-image synthesis qu
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Parameter Contract
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Text-to-Image Alignment & Human Preference |
+| **CLI Metric** | `pickscore` |
+| **Input Options** | `--image <file_or_dir>`, `--prompt "<text_or_file>"` (both required) |
+| **Prohibited Options** | `--reference` (not applicable for human preference scoring) |
+| **Output Scale** | Calibrated likelihood logits, typically `[15.0, 25.0]` |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | Fine-tuned CLIP `ViT-H-14` |
+| **Upstream Source** | [yuvalkirstain/PickScore_v1](https://huggingface.co/yuvalkirstain/PickScore_v1) |
 
 ---
 
@@ -332,6 +373,14 @@ On empirical test sets, real outputs typically score in $[15.0, 25.0]$. Higher v
 
 ---
 
+## Interpretation & Guidance
+
+- **Score Range**: Real outputs typically fall in $[15.0, 25.0]$. Scores above $21.0$ indicate strong visual appeal and high probability of being chosen by human judges. Scores below $18.0$ indicate artifact-laden or poorly aligned outputs.
+- **Preference vs. Fidelity**: A technically distorted image may receive a low score even if it contains prompt keywords, because the model captures human aesthetic displeasure.
+- **Prompt Sensitivity**: PickScore requires clear descriptive text. Empty or whitespace-only prompts raise an explicit error.
+
+---
+
 ## Usage Examples
 
 ### Single Image Evaluation
@@ -339,7 +388,9 @@ On empirical test sets, real outputs typically score in $[15.0, 25.0]$. Higher v
 Score human aesthetic preference against a target prompt:
 
     ```bash
-    image-evaluator --metrics pickscore             --image path/to/sample.png             --prompt "an oil painting of a cottage in the woods at twilight"
+    image-evaluator --metrics pickscore \
+        --image path/to/sample.png \
+        --prompt "an oil painting of a cottage in the woods at twilight"
 
     ```
 
@@ -360,7 +411,9 @@ Score human aesthetic preference against a target prompt:
 Compare multiple generated candidates to determine which one humans are most likely to select:
 
     ```bash
-    image-evaluator --metrics pickscore             --image path/to/candidate_folder/             --prompt "portrait of an ancient warrior, detailed cinematic lighting"
+    image-evaluator --metrics pickscore \
+        --image path/to/candidate_folder/ \
+        --prompt "portrait of an ancient warrior, detailed cinematic lighting"
 
     ```
 
@@ -378,6 +431,14 @@ Compare multiple generated candidates to determine which one humans are most lik
 
 ---
 
+## References
+
+- **Paper**: Kirstain et al., 2023, *Pick-a-Pic: An Open Dataset of User Preferences for Text-to-Image Generation* (NeurIPS 2023, [arXiv:2305.01569](https://arxiv.org/abs/2305.01569))
+- **Model Card & Weights**: [yuvalkirstain/PickScore_v1](https://huggingface.co/yuvalkirstain/PickScore_v1)
+- **Project Repository**: [tgxs-by/PickScore](https://github.com/yuvalkirstain/PickScore)
+
+---
+
 # LPIPS (Perceptual Distance)
 
 > Learned Perceptual Image Patch Similarity using AlexNet multi-scale deep features
@@ -386,13 +447,19 @@ Learned Perceptual Image Patch Similarity (LPIPS) by Zhang et al. (CVPR 2018) ev
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Parameter Contract
-
-  **Spatial Dimension Contract**: LPIPS strictly enforces that input pairs share identical dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly raises `ValueError` on size mismatch to prevent high-frequency interpolation artifacts.
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Perceptual Fidelity |
+| **CLI Metric** | `lpips` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Spatial Constraint** | Strictly identical dimensions required ($H_{\text{ref}} = H_{\text{gen}}$, $W_{\text{ref}} = W_{\text{gen}}$) |
+| **Output Scale** | Continuous scalar float in `[0.0, +inf)` |
+| **Direction** | **Lower is better** (0.0 denotes exact perceptual match) |
+| **Model Backbone** | Official AlexNet trunk (v0.1 learned weights) |
+| **Upstream Source** | [richzhang/PerceptualSimilarity](https://github.com/richzhang/PerceptualSimilarity) |
 
 ---
 
@@ -407,6 +474,14 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 
 ---
 
+## Interpretation & Guidance
+
+- **Diagnostic Thresholds**: Values below $0.15$ indicate near-lossless perceptual fidelity. Ranges between $0.15$ and $0.35$ represent moderate stylistic or texture drift. Values above $0.35$ signal heavy perceptual distortion or structural breakdown.
+- **Fail-Fast Policy**: Pairwise dimensions must match exactly. The evaluator terminates with a `ValueError` rather than applying silent interpolation, ensuring no resampling blur corrupts measurement.
+- **Folder Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
+
+---
+
 ## Usage Examples
 
 ### Single Pair Evaluation
@@ -414,7 +489,9 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 Measure deep perceptual distance between a generated sample and ground truth:
 
     ```bash
-    image-evaluator --metrics lpips             --reference path/to/reference.png             --image path/to/generated.png
+    image-evaluator --metrics lpips \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
 
     ```
 
@@ -435,7 +512,9 @@ Measure deep perceptual distance between a generated sample and ground truth:
 Compute pairwise perceptual distance across directories of matching files:
 
     ```bash
-    image-evaluator --metrics lpips             --reference path/to/reference_folder/             --image path/to/generated_folder/
+    image-evaluator --metrics lpips \
+        --reference path/to/reference_folder/ \
+        --image path/to/generated_folder/
 
     ```
 
@@ -453,6 +532,13 @@ Compute pairwise perceptual distance across directories of matching files:
 
 ---
 
+## References
+
+- **Paper**: Zhang et al., 2018, *The Unreasonable Effectiveness of Deep Features as a Perceptual Metric* (CVPR 2018, [arXiv:1801.03924](https://arxiv.org/abs/1801.03924))
+- **Official Repository**: [richzhang/PerceptualSimilarity](https://github.com/richzhang/PerceptualSimilarity)
+
+---
+
 # SSIM (Structural Similarity)
 
 > Structural Similarity Index Measure computed across luminance, contrast, and structure
@@ -461,13 +547,19 @@ The Structural Similarity Index Measure (SSIM) by Wang et al. (IEEE TIP 2004) ev
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Parameter Contract
-
-  **Minimum Spatial Size Requirement**: Because SSIM computes statistics over an $11 \times 11$ Gaussian sliding window, both images must measure at least 11 pixels in height and width. Inputs smaller than 11 pixels raise a `ValueError`.
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Structural Fidelity |
+| **CLI Metric** | `ssim` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Dimension Floor** | Both dimensions must be $\ge 11$ pixels ($11 \times 11$ Gaussian window) |
+| **Output Scale** | Continuous scalar in `[-1.0, 1.0]` (1.0 denotes identity) |
+| **Direction** | **Higher is better** |
+| **Window Parameters** | $11 \times 11$ Gaussian, $\sigma=1.5, K_1=0.01, K_2=0.03, L=255$ |
+| **Upstream Source** | [scikit-image](https://scikit-image.org/) / [Wang et al., 2004](https://ieeexplore.ieee.org/document/1284395) |
 
 ---
 
@@ -491,6 +583,14 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
 
 ---
 
+## Interpretation & Guidance
+
+- **Benchmark Interpretation**: Scores above $0.85$ indicate strong structural preservation. Values in $0.65 - 0.85$ represent lossy compression artifacts or slight edge blurring. Values below $0.65$ denote severe structural tear or deformation.
+- **Fail-Fast Policy**: SSIM requires image dimensions to be at least $11 \times 11$ pixels. Inputs smaller than 11 pixels terminate with an explicit `ValueError`.
+- **Structural Focus**: Excellent for detecting geometric displacement and blur; complementary to LPIPS deep perceptual evaluation.
+
+---
+
 ## Usage Examples
 
 ### Single Pair Evaluation
@@ -498,7 +598,9 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
 Evaluate structural similarity between a generated image and original reference:
 
     ```bash
-    image-evaluator --metrics ssim             --reference path/to/reference.png             --image path/to/generated.png
+    image-evaluator --metrics ssim \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
 
     ```
 
@@ -519,7 +621,9 @@ Evaluate structural similarity between a generated image and original reference:
 Compute mean SSIM across paired folders of images:
 
     ```bash
-    image-evaluator --metrics ssim             --reference path/to/reference_folder/             --image path/to/generated_folder/
+    image-evaluator --metrics ssim \
+        --reference path/to/reference_folder/ \
+        --image path/to/generated_folder/
 
     ```
 
@@ -537,6 +641,13 @@ Compute mean SSIM across paired folders of images:
 
 ---
 
+## References
+
+- **Paper**: Wang et al., 2004, *Image Quality Assessment: From Error Visibility to Structural Similarity* (IEEE Transactions on Image Processing, [DOI:10.1109/TIP.2003.819861](https://doi.org/10.1109/TIP.2003.819861))
+- **Standard Reference**: [Zhou Wang Academic Portal](https://ece.uwaterloo.ca/~z70wang/research/ssim/)
+
+---
+
 # PSNR (Peak Signal-to-Noise Ratio)
 
 > Peak Signal-to-Noise Ratio (dB) computed from pixel-wise Mean Squared Error
@@ -545,13 +656,19 @@ Peak Signal-to-Noise Ratio (PSNR) evaluates the objective reconstruction fidelit
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Parameter Contract
-
-  **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. While it provides mathematically exact noise metrics, a global color shift (e.g. slight warm tint) or a single-pixel spatial shift can drastically reduce PSNR while leaving perceived quality intact. Pair with **LPIPS** for holistic evaluation.
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Pixel Reconstruction |
+| **CLI Metric** | `psnr` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pixel reconstruction) |
+| **Spatial Constraint** | Strictly identical dimensions required ($H_{\text{ref}} = H_{\text{gen}}$, $W_{\text{ref}} = W_{\text{gen}}$) |
+| **Output Scale** | Decibels (dB) in `[0.0, +inf)` |
+| **Direction** | **Higher is better** |
+| **Peak Power** | $\text{MAX}_I = 255.0$ (8-bit sRGB color space) |
+| **Upstream Source** | Classical Signal Processing / ITU-R BT.601 |
 
 ---
 
@@ -573,6 +690,13 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
 
 ---
 
+## Interpretation & Guidance
+
+- **Decibel Benchmarks**: PSNR above $35\text{ dB}$ represents excellent reconstruction with imperceptible pixel noise. Ranges between $25 - 35\text{ dB}$ reflect typical lossy codec compression (JPEG, WebP). Values below $20\text{ dB}$ indicate heavy noise or severe distortion.
+- **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. A uniform color tint or a 1-pixel shift drastically penalizes PSNR despite high human visual acceptability. Pair with **LPIPS** for balanced perceptual assessment.
+
+---
+
 ## Usage Examples
 
 ### Single Pair Evaluation
@@ -580,7 +704,9 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
 Evaluate pixel-level reconstruction signal-to-noise ratio:
 
     ```bash
-    image-evaluator --metrics psnr             --reference path/to/reference.png             --image path/to/generated.png
+    image-evaluator --metrics psnr \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
 
     ```
 
@@ -601,7 +727,9 @@ Evaluate pixel-level reconstruction signal-to-noise ratio:
 Calculate mean PSNR across paired image directories:
 
     ```bash
-    image-evaluator --metrics psnr             --reference path/to/reference_folder/             --image path/to/generated_folder/
+    image-evaluator --metrics psnr \
+        --reference path/to/reference_folder/ \
+        --image path/to/generated_folder/
 
     ```
 
@@ -619,6 +747,13 @@ Calculate mean PSNR across paired image directories:
 
 ---
 
+## References
+
+- **Standard**: ITU-R Recommendation BT.601, *Studio encoding parameters of digital television for standard 4:3 and wide-screen 16:9 aspect ratios* ([ITU Recommendation](https://www.itu.int/rec/R-REC-BT.601))
+- **Foundational Text**: Gonzalez & Woods, *Digital Image Processing*, 4th Edition, Pearson.
+
+---
+
 # ArcFace Distance
 
 > Facial identity preservation using InsightFace buffalo_l 512-dimensional cosine feature distance
@@ -627,13 +762,19 @@ ArcFace Distance (Deng et al., CVPR 2019) measures facial identity consistency b
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Parameter Contract
-
-  **Face Detection Prerequisite**: ArcFace requires successful face detection in **both** the reference and generated images via InsightFace RetinaFace (`buffalo_l`). If no face is detected in either image, the metric returns `None`.
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Facial Identity Preservation (Pairwise) |
+| **CLI Metric** | `arcface` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (facial identity compares biometric features) |
+| **Face Prerequisite** | Both reference and generated images must contain a detectable face |
+| **Output Scale** | Cosine distance in `[0.0, 2.0]` |
+| **Direction** | **Lower is better** (0.0 denotes exact identity match) |
+| **Model Backbone** | InsightFace `buffalo_l` (RetinaFace + 512-dim ArcFace) |
+| **Upstream Source** | [deepinsight/insightface](https://github.com/deepinsight/insightface) |
 
 ---
 
@@ -650,6 +791,14 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
 
 ---
 
+## Interpretation & Guidance
+
+- **Benchmark Calibration**: Cosine distance below $0.40$ indicates high facial identity retention (sufficient for InstantID/PhotoMaker verification). Values between $0.40$ and $0.60$ represent borderline drift due to extreme lighting or novel angles. Values above $0.60$ indicate identity loss.
+- **Biometric Only**: ArcFace evaluates exclusively facial biometric geometry; it ignores background composition, garments, and lighting.
+- **Detection Prerequisite**: If the detector fails to locate a face in either image, the metric returns `None`.
+
+---
+
 ## Usage Examples
 
 ### Single Pair Face Identity Evaluation
@@ -657,7 +806,9 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
 Compare facial identity retention between generated output and real photo:
 
     ```bash
-    image-evaluator --metrics arcface             --reference path/to/reference_face.png             --image path/to/generated_face.png
+    image-evaluator --metrics arcface \
+        --reference path/to/reference_face.png \
+        --image path/to/generated_face.png
 
     ```
 
@@ -678,7 +829,9 @@ Compare facial identity retention between generated output and real photo:
 Batch evaluate personalization testsets across folders:
 
     ```bash
-    image-evaluator --metrics arcface             --reference path/to/reference_faces/             --image path/to/generated_faces/
+    image-evaluator --metrics arcface \
+        --reference path/to/reference_faces/ \
+        --image path/to/generated_faces/
 
     ```
 
@@ -696,6 +849,13 @@ Batch evaluate personalization testsets across folders:
 
 ---
 
+## References
+
+- **Paper**: Deng et al., 2019, *ArcFace: Additive Angular Margin Loss for Deep Face Recognition* (CVPR 2019, [arXiv:1801.07698](https://arxiv.org/abs/1801.07698))
+- **Official Repository**: [deepinsight/insightface](https://github.com/deepinsight/insightface)
+
+---
+
 # FID (Fréchet Inception Distance)
 
 > Generative distribution distance evaluated in Inception-v3 pool3 feature space
@@ -704,19 +864,19 @@ Fréchet Inception Distance (Heusel et al., NeurIPS 2017) measures the statistic
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Directory Layout Contract
-
-FID requires directory inputs on both generated and reference sides. Unlike pairwise metrics, filenames do not need to match and sample counts may differ ($N_{\text{ref}} \neq N_{\text{gen}}$):
-
-    = 2048 recommended)" />
-
-    = 2048 recommended)" />
-
-  **Sample Size Bias Warning**: FID is a biased estimator. Evaluating with small sample sizes ($N < 2048$) systematically overestimates the true distribution distance and triggers a runtime warning. For sample sizes under 2000, consider using the unbiased **KID** metric instead.
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Dataset Distribution Fidelity |
+| **CLI Metric** | `fid` |
+| **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
+| **Prohibited Options** | Single image file paths, `--prompt` |
+| **Sample Guidance** | $N \ge 2048$ samples recommended (biased estimator on small $N$) |
+| **Output Scale** | Continuous scalar in `[0.0, +inf)` |
+| **Direction** | **Lower is better** (0.0 denotes identical feature distributions) |
+| **Feature Extractor** | Inception-v3 `pool3` (2048 dimensions, CleanFID protocol) |
+| **Upstream Source** | [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid) |
 
 ---
 
@@ -733,6 +893,18 @@ Lower values indicate closer fidelity and diversity to the ground-truth distribu
 
 ---
 
+## Directory Layout Contract
+
+FID requires directory inputs on both generated and reference sides. Filenames do not need to match and sample counts may differ ($N_{\text{ref}} \neq N_{\text{gen}}$):
+
+    = 2048 recommended)" />
+
+    = 2048 recommended)" />
+
+  **Sample Size Bias Warning**: FID is a biased estimator. Evaluating with small sample sizes ($N < 2048$) systematically overestimates the true distribution distance and triggers a runtime warning. For sample sizes under 2000, consider using the unbiased **KID** metric instead.
+
+---
+
 ## Usage Examples
 
 ### Dataset Distribution Evaluation
@@ -740,7 +912,9 @@ Lower values indicate closer fidelity and diversity to the ground-truth distribu
 Compute CleanFID between generated and ground-truth directories:
 
     ```bash
-    image-evaluator --metrics fid             --reference path/to/real_images/             --image path/to/generated_images/
+    image-evaluator --metrics fid \
+        --reference path/to/real_images/ \
+        --image path/to/generated_images/
 
     ```
 
@@ -758,6 +932,14 @@ Compute CleanFID between generated and ground-truth directories:
 
 ---
 
+## References
+
+- **Paper**: Heusel et al., 2017, *GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium* (NeurIPS 2017, [arXiv:1706.08500](https://arxiv.org/abs/1706.08500))
+- **CleanFID Protocol**: Parmar et al., 2022, *On Bug-Free and Clean Inception Metrics* (CVPR 2022, [arXiv:2104.11222](https://arxiv.org/abs/2104.11222))
+- **Official Implementation**: [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid)
+
+---
+
 # KID (Kernel Inception Distance)
 
 > Unbiased polynomial kernel maximum mean discrepancy (MMD) in Inception feature space
@@ -766,15 +948,19 @@ Kernel Inception Distance (Bińkowski et al., ICLR 2018) is an unbiased metric f
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
----
-
-## Dataset Directory Layout
-
-KID operates over directories of images. Like FID, filenames do not need to match and counts can differ:
-
-  **Small-Sample Unbiasedness & Negative Values**: Because the U-statistic is an unbiased estimator of squared MMD, sample variance around zero can yield small negative values (e.g. `-0.0004`). These reflect unbiased statistical variance and must **never** be manually clamped to zero.
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Unbiased Dataset Distribution Distance |
+| **CLI Metric** | `kid` |
+| **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
+| **Prohibited Options** | Single image file paths, `--prompt` |
+| **Small Sample Robust** | Unbiased on subsets of $100 - 1000$ samples |
+| **Output Scale** | U-statistic scalar, typically $[-0.01, 0.10]$ (reported as $\text{Mean} \pm \text{Std}$) |
+| **Direction** | **Lower is better** |
+| **Kernel Type** | Cubic polynomial $k(x, y) = (x^T y / d + 1)^3$ on Inception features |
+| **Upstream Source** | [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid) |
 
 ---
 
@@ -791,6 +977,14 @@ The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{St
 
 ---
 
+## Dataset Directory Layout
+
+KID operates over directories of images. Like FID, filenames do not need to match and counts can differ:
+
+  **Small-Sample Unbiasedness & Negative Values**: Because the U-statistic is an unbiased estimator of squared MMD, sample variance around zero can yield small negative values (e.g. `-0.0004`). These reflect unbiased statistical variance and must **never** be manually clamped to zero.
+
+---
+
 ## Usage Examples
 
 ### Dataset Distribution Evaluation
@@ -798,7 +992,9 @@ The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{St
 Compute unbiased KID between generated and reference folders:
 
     ```bash
-    image-evaluator --metrics kid             --reference path/to/reference_dir/             --image path/to/generated_dir/
+    image-evaluator --metrics kid \
+        --reference path/to/reference_dir/ \
+        --image path/to/generated_dir/
 
     ```
 
@@ -813,6 +1009,13 @@ Compute unbiased KID between generated and reference folders:
     print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
 
     ```
+
+---
+
+## References
+
+- **Paper**: Bińkowski et al., 2018, *Demystifying MMD GANs* (ICLR 2018, [arXiv:1801.01401](https://arxiv.org/abs/1801.01401))
+- **Implementation**: [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid)
 
 ---
 

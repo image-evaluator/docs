@@ -9,25 +9,37 @@ Fréchet Inception Distance (Heusel et al., NeurIPS 2017) measures the statistic
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
-<MetricScale
-  min={0.0}
-  max={100.0}
-  unit=""
-  direction="lower"
-  segments={[
-    { label: "State of the Art", range: [0.0, 15.0], color: "emerald", note: "Commercial-grade diffusion realism & rich diversity" },
-    { label: "Acceptable Realism", range: [15.0, 40.0], color: "amber", note: "Standard generative research baseline" },
-    { label: "Mode Collapse", range: [40.0, 100.0], color: "rose", note: "Severe artifacts, blur, or severe loss of sample diversity" }
-  ]}
-/>
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Dataset Distribution Fidelity |
+| **CLI Metric** | `fid` |
+| **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
+| **Prohibited Options** | Single image file paths, `--prompt` |
+| **Sample Guidance** | $N \ge 2048$ samples recommended (biased estimator on small $N$) |
+| **Output Scale** | Continuous scalar in `[0.0, +inf)` |
+| **Direction** | **Lower is better** (0.0 denotes identical feature distributions) |
+| **Feature Extractor** | Inception-v3 `pool3` (2048 dimensions, CleanFID protocol) |
+| **Upstream Source** | [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid) |
+
+---
+
+## Mathematical Formulation
+
+The Wasserstein-2 distance between two multivariate Gaussians $(\mu_r, \Sigma_r)$ and $(\mu_g, \Sigma_g)$ is computed as:
+
+```math
+\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2\left(\Sigma_r \Sigma_g\right)^{1/2} \right)
+```
+
+Lower values indicate closer fidelity and diversity to the ground-truth distribution.
 
 ---
 
 ## Directory Layout Contract
 
-FID requires directory inputs on both generated and reference sides. Unlike pairwise metrics, filenames do not need to match and sample counts may differ ($N_{\text{ref}} \neq N_{\text{gen}}$):
+FID requires directory inputs on both generated and reference sides. Filenames do not need to match and sample counts may differ ($N_{\text{ref}} \neq N_{\text{gen}}$):
 
 <Files>
   <Folder name="real_dataset" defaultOpen>
@@ -48,18 +60,6 @@ FID requires directory inputs on both generated and reference sides. Unlike pair
 
 ---
 
-## Mathematical Formulation
-
-The Wasserstein-2 distance between two multivariate Gaussians $(\mu_r, \Sigma_r)$ and $(\mu_g, \Sigma_g)$ is computed as:
-
-```math
-\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2\left(\Sigma_r \Sigma_g\right)^{1/2} \right)
-```
-
-Lower values indicate closer fidelity and diversity to the ground-truth distribution.
-
----
-
 ## Usage Examples
 
 <Steps>
@@ -71,7 +71,9 @@ Lower values indicate closer fidelity and diversity to the ground-truth distribu
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics fid             --reference path/to/real_images/             --image path/to/generated_images/
+        image-evaluator --metrics fid \
+            --reference path/to/real_images/ \
+            --image path/to/generated_images/
         ```
       </Tab>
       <Tab value="Python API">
@@ -89,4 +91,12 @@ Lower values indicate closer fidelity and diversity to the ground-truth distribu
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## References
+
+- **Paper**: Heusel et al., 2017, *GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium* (NeurIPS 2017, [arXiv:1706.08500](https://arxiv.org/abs/1706.08500))
+- **CleanFID Protocol**: Parmar et al., 2022, *On Bug-Free and Clean Inception Metrics* (CVPR 2022, [arXiv:2104.11222](https://arxiv.org/abs/2104.11222))
+- **Official Implementation**: [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid)
 

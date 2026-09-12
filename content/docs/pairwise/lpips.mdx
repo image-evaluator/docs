@@ -9,52 +9,19 @@ Learned Perceptual Image Patch Similarity (LPIPS) by Zhang et al. (CVPR 2018) ev
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
-<MetricScale
-  min={0.0}
-  max={1.0}
-  unit=""
-  direction="lower"
-  segments={[
-    { label: "High Fidelity", range: [0.0, 0.15], color: "emerald", note: "Imperceptible perceptual difference against reference" },
-    { label: "Moderate Drift", range: [0.15, 0.35], color: "amber", note: "Noticeable style, texture, or fine detail shift" },
-    { label: "Heavy Distortion", range: [0.35, 1.0], color: "rose", note: "Severe structural corruption or semantic divergence" }
-  ]}
-/>
-
----
-
-## Parameter Contract
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "Must include 'lpips'.",
-      default: "required"
-    },
-    "--image": {
-      type: "string (path)",
-      description: "Path to generated image file or folder.",
-      default: "required"
-    },
-    "--reference": {
-      type: "string (path)",
-      description: "Path to ground-truth reference image file or folder.",
-      default: "required"
-    },
-    "--prompt": {
-      type: "string",
-      description: "Not allowed for pairwise image fidelity.",
-      default: "none"
-    }
-  }}
-/>
-
-<Callout type="warn">
-  **Spatial Dimension Contract**: LPIPS strictly enforces that input pairs share identical dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly raises `ValueError` on size mismatch to prevent high-frequency interpolation artifacts.
-</Callout>
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Perceptual Fidelity |
+| **CLI Metric** | `lpips` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Spatial Constraint** | Strictly identical dimensions required ($H_{\text{ref}} = H_{\text{gen}}$, $W_{\text{ref}} = W_{\text{gen}}$) |
+| **Output Scale** | Continuous scalar float in `[0.0, +inf)` |
+| **Direction** | **Lower is better** (0.0 denotes exact perceptual match) |
+| **Model Backbone** | Official AlexNet trunk (v0.1 learned weights) |
+| **Upstream Source** | [richzhang/PerceptualSimilarity](https://github.com/richzhang/PerceptualSimilarity) |
 
 ---
 
@@ -65,6 +32,14 @@ LPIPS extracts feature activations across $L$ layers from reference $x$ and gene
 ```math
 d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y}^l_{hw} - \hat{y}_{0, hw}^l \right) \right\|_2^2
 ```
+
+---
+
+## Interpretation & Guidance
+
+- **Diagnostic Thresholds**: Values below $0.15$ indicate near-lossless perceptual fidelity. Ranges between $0.15$ and $0.35$ represent moderate stylistic or texture drift. Values above $0.35$ signal heavy perceptual distortion or structural breakdown.
+- **Fail-Fast Policy**: Pairwise dimensions must match exactly. The evaluator terminates with a `ValueError` rather than applying silent interpolation, ensuring no resampling blur corrupts measurement.
+- **Folder Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
 
 ---
 
@@ -79,7 +54,9 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics lpips             --reference path/to/reference.png             --image path/to/generated.png
+        image-evaluator --metrics lpips \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API">
@@ -105,7 +82,9 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics lpips             --reference path/to/reference_folder/             --image path/to/generated_folder/
+        image-evaluator --metrics lpips \
+            --reference path/to/reference_folder/ \
+            --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API">
@@ -123,4 +102,11 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## References
+
+- **Paper**: Zhang et al., 2018, *The Unreasonable Effectiveness of Deep Features as a Perceptual Metric* (CVPR 2018, [arXiv:1801.03924](https://arxiv.org/abs/1801.03924))
+- **Official Repository**: [richzhang/PerceptualSimilarity](https://github.com/richzhang/PerceptualSimilarity)
 

@@ -9,48 +9,18 @@ PickScore (Kirstain et al., NeurIPS 2023) 专门用于评测文本生成图像�
 
 ---
 
-## 指标诊断区间标尺
+## 核心规格
 
-<MetricScale
-  min={10.0}
-  max={30.0}
-  unit=" 分 (Logit)"
-  direction="higher"
-  segments={[
-    { label: "极高人类偏好", range: [21.0, 30.0], color: "emerald", note: "高度符合人类审美、构图出众、无明显形变瑕疵" },
-    { label: "中位基准生成", range: [17.0, 21.0], color: "amber", note: "标准扩散模型平均表现，符合提示词但质感普通" },
-    { label: "人类明显倾向淘汰", range: [10.0, 17.0], color: "rose", note: "肢体崩坏、语义偏离、画面噪点或光影严重失真" }
-  ]}
-/>
-
----
-
-## 接口参数契约
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "声明评测指标，必须包含 'pickscore'。",
-      default: "必填"
-    },
-    "--image": {
-      type: "string (路径)",
-      description: "待评测图片路径或候选图片文件夹路径。",
-      default: "必填"
-    },
-    "--prompt": {
-      type: "string",
-      description: "生成该图像所依据的文本提示词，必填。",
-      default: "必填"
-    },
-    "--reference": {
-      type: "string",
-      description: "人类偏好模型直接评估 (Image, Prompt)，禁止传入参考底图。",
-      default: "禁止"
-    }
-  }}
-/>
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 跨模态图文对齐与偏好 (Text-to-Image Alignment) |
+| **命令行参数** | `--metrics pickscore` |
+| **输入要求** | `--image <图片或目录>`, `--prompt "<文本提示词>"` (两项皆必填) |
+| **禁止参数** | `--reference` (偏好模型直接基于图文打分，禁止参考图) |
+| **标度范围** | 校准后的 Logit 分值，主流测试集集中在 `[15.0, 25.0]` |
+| **取值方向** | **数值越高越优** |
+| **骨干网络** | 微调版 CLIP `ViT-H-14` |
+| **权威源** | [yuvalkirstain/PickScore_v1](https://huggingface.co/yuvalkirstain/PickScore_v1) |
 
 ---
 
@@ -66,6 +36,14 @@ s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}
 
 ---
 
+## 评测阈值与解读建议
+
+- **基准分位区间**：分值大于 $21.0$ 通常意味着图像构图出众、人体结构完整且符合人类审美；分值低于 $18.0$ 则往往存在肢体瑕疵、过度变形或明显的图文失配。
+- **真实审美约束**：即使生成图像完全包含提示词中提到的名词，若画面呈现重度噪点或解剖学畸变，PickScore 依然会给出低分，反映出人类对整体质感的严苛评判。
+- **提示词必填**：禁止传入空字符串或纯空格提示词，否则将抛出异常终止评测。
+
+---
+
 ## 调用示例
 
 <Steps>
@@ -77,7 +55,9 @@ s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics pickscore             --image path/to/sample.png             --prompt "an oil painting of a cottage in the woods at twilight"
+        image-evaluator --metrics pickscore \
+            --image path/to/sample.png \
+            --prompt "an oil painting of a cottage in the woods at twilight"
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -103,7 +83,9 @@ s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics pickscore             --image path/to/candidate_folder/             --prompt "portrait of an ancient warrior, detailed cinematic lighting"
+        image-evaluator --metrics pickscore \
+            --image path/to/candidate_folder/ \
+            --prompt "portrait of an ancient warrior, detailed cinematic lighting"
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -121,4 +103,12 @@ s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## 参考文献与项目源
+
+- **核心论文**: Kirstain et al., 2023, *Pick-a-Pic: An Open Dataset of User Preferences for Text-to-Image Generation* (NeurIPS 2023, [arXiv:2305.01569](https://arxiv.org/abs/2305.01569))
+- **官方权重与模型卡**: [yuvalkirstain/PickScore_v1](https://huggingface.co/yuvalkirstain/PickScore_v1)
+- **项目仓库**: [yuvalkirstain/PickScore](https://github.com/yuvalkirstain/PickScore)
 

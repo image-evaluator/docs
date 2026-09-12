@@ -1,11 +1,11 @@
 ---
 title: Quickstart
-description: Production-grade multidimensional evaluation toolkit for AI image generation
+description: Lightweight unified evaluation toolkit for generative image quality and alignment
 ---
 
 # Quickstart
 
-`image-evaluator` is a production-grade, lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
+`image-evaluator` is a lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
 
 ---
 
@@ -13,19 +13,17 @@ description: Production-grade multidimensional evaluation toolkit for AI image g
 
 The toolkit structures its nine core metrics across four functional dimensions based on evaluation input interface:
 
-| Category | Metric | Input Options | Feature Space | Direction | Documentation |
+| Category | Metric | Required Options | Output Scale | Direction | Documentation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **No-Reference Quality** | `aesthetic` | `--image` | OpenCLIP `ViT-L-14` + linear head | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
-| **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | CLIP `clip-vit-base-patch32` cosine | Higher is better | [CLIP Score](/text-image/clip) |
-| **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Fine-tuned CLIP ViT-H-14 logits | Higher is better | [PickScore](/text-image/pickscore) |
-| **Pairwise Comparison** | `lpips` | `--image`, `--reference` | AlexNet deep multi-scale features | Lower is better | [LPIPS Distance](/pairwise/lpips) |
-| **Pairwise Comparison** | `ssim` | `--image`, `--reference` | $11 \times 11$ Gaussian sliding window | Higher is better | [SSIM Similarity](/pairwise/ssim) |
-| **Pairwise Comparison** | `psnr` | `--image`, `--reference` | Mean Squared Error logarithmic SNR | Higher is better | [PSNR Ratio](/pairwise/psnr) |
-| **Pairwise Comparison** | `arcface` | `--image`, `--reference` | InsightFace `buffalo_l` 512-dim | Lower is better | [ArcFace Distance](/pairwise/arcface) |
-| **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | Inception-v3 pool3 Gaussian quadratic | Lower is better | [FID Score](/distribution/fid) |
-| **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | Polynomial kernel MMD U-statistic | Lower is better | [KID Score](/distribution/kid) |
-
-<EvaluationWorkflow lang="en" />
+| **No-Reference Quality** | `aesthetic` | `--image` | `[1.0, 10.0]` | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
+| **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | `[0.0, 100.0]` | Higher is better | [CLIP Score](/text-image/clip) |
+| **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Logits $\approx [15, 25]$ | Higher is better | [PickScore](/text-image/pickscore) |
+| **Pairwise Comparison** | `lpips` | `--image`, `--reference` | `[0.0, +inf)` | Lower is better | [LPIPS Distance](/pairwise/lpips) |
+| **Pairwise Comparison** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [SSIM Similarity](/pairwise/ssim) |
+| **Pairwise Comparison** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | Higher is better | [PSNR Ratio](/pairwise/psnr) |
+| **Pairwise Comparison** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | Lower is better | [ArcFace Distance](/pairwise/arcface) |
+| **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | Lower is better | [FID Score](/distribution/fid) |
+| **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | Lower is better | [KID Score](/distribution/kid) |
 
 ---
 
@@ -41,7 +39,7 @@ The toolkit structures its nine core metrics across four functional dimensions b
 
 ---
 
-## Quickstart
+## Quickstart Tutorial
 
 <Steps>
   <Step>
@@ -172,20 +170,3 @@ The toolkit structures its nine core metrics across four functional dimensions b
   </Step>
 </Steps>
 
----
-
-## Architectural Principles
-
-<Accordions>
-  <Accordion title="Lazy Loading Model Weights">
-    The engine initializes only the models explicitly declared in `--metrics`. Weight caches and intermediate tensors are strictly scoped. Unselected heavy models (such as InsightFace or PickScore ViT-H-14) remain completely unloaded, preserving host RAM and GPU VRAM during long-running pipelines.
-  </Accordion>
-
-  <Accordion title="Strict Spatial Alignment Verification">
-    Pairwise metrics enforce an absolute dimension check ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly rejects silent interpolation or resizing, guaranteeing that resolution scaling artifacts never contaminate deep perceptual measurements.
-  </Accordion>
-
-  <Accordion title="Hardware Acceleration Across Platforms">
-    Native support across Linux (CUDA acceleration, CPU fallback) and macOS (Apple Silicon Metal MPS, CPU). Automatic device resolution dynamically optimizes batch throughput without manual torch device configuration.
-  </Accordion>
-</Accordions>

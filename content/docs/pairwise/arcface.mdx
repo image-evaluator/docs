@@ -9,52 +9,19 @@ ArcFace Distance (Deng et al., CVPR 2019) measures facial identity consistency b
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
-<MetricScale
-  min={0.0}
-  max={2.0}
-  unit=""
-  direction="lower"
-  segments={[
-    { label: "Same Identity", range: [0.0, 0.40], color: "emerald", note: "High identity retention (InstantID / LoRA verification standard)" },
-    { label: "Ambiguous Drift", range: [0.40, 0.60], color: "amber", note: "Facial expression or lighting causing boundary drift" },
-    { label: "Different Identity", range: [0.60, 2.0], color: "rose", note: "Identity lost or incorrect biometric features" }
-  ]}
-/>
-
----
-
-## Parameter Contract
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "Must include 'arcface'.",
-      default: "required"
-    },
-    "--image": {
-      type: "string (path)",
-      description: "Path to generated facial image or folder.",
-      default: "required"
-    },
-    "--reference": {
-      type: "string (path)",
-      description: "Path to reference ground-truth facial image or folder.",
-      default: "required"
-    },
-    "--prompt": {
-      type: "string",
-      description: "Not allowed for facial identity evaluation.",
-      default: "none"
-    }
-  }}
-/>
-
-<Callout type="warn">
-  **Face Detection Prerequisite**: ArcFace requires successful face detection in **both** the reference and generated images via InsightFace RetinaFace (`buffalo_l`). If no face is detected in either image, the metric returns `None`.
-</Callout>
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Facial Identity Preservation (Pairwise) |
+| **CLI Metric** | `arcface` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (facial identity compares biometric features) |
+| **Face Prerequisite** | Both reference and generated images must contain a detectable face |
+| **Output Scale** | Cosine distance in `[0.0, 2.0]` |
+| **Direction** | **Lower is better** (0.0 denotes exact identity match) |
+| **Model Backbone** | InsightFace `buffalo_l` (RetinaFace + 512-dim ArcFace) |
+| **Upstream Source** | [deepinsight/insightface](https://github.com/deepinsight/insightface) |
 
 ---
 
@@ -70,6 +37,14 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
 
 ---
 
+## Interpretation & Guidance
+
+- **Benchmark Calibration**: Cosine distance below $0.40$ indicates high facial identity retention (sufficient for InstantID/PhotoMaker verification). Values between $0.40$ and $0.60$ represent borderline drift due to extreme lighting or novel angles. Values above $0.60$ indicate identity loss.
+- **Biometric Only**: ArcFace evaluates exclusively facial biometric geometry; it ignores background composition, garments, and lighting.
+- **Detection Prerequisite**: If the detector fails to locate a face in either image, the metric returns `None`.
+
+---
+
 ## Usage Examples
 
 <Steps>
@@ -81,7 +56,9 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics arcface             --reference path/to/reference_face.png             --image path/to/generated_face.png
+        image-evaluator --metrics arcface \
+            --reference path/to/reference_face.png \
+            --image path/to/generated_face.png
         ```
       </Tab>
       <Tab value="Python API">
@@ -107,7 +84,9 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics arcface             --reference path/to/reference_faces/             --image path/to/generated_faces/
+        image-evaluator --metrics arcface \
+            --reference path/to/reference_faces/ \
+            --image path/to/generated_faces/
         ```
       </Tab>
       <Tab value="Python API">
@@ -125,4 +104,11 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## References
+
+- **Paper**: Deng et al., 2019, *ArcFace: Additive Angular Margin Loss for Deep Face Recognition* (CVPR 2019, [arXiv:1801.07698](https://arxiv.org/abs/1801.07698))
+- **Official Repository**: [deepinsight/insightface](https://github.com/deepinsight/insightface)
 

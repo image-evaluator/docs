@@ -9,52 +9,19 @@ Peak Signal-to-Noise Ratio (PSNR) evaluates the objective reconstruction fidelit
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
-<MetricScale
-  min={15.0}
-  max={50.0}
-  unit=" dB"
-  direction="higher"
-  segments={[
-    { label: "High Fidelity", range: [35.0, 50.0], color: "emerald", note: "Imperceptible pixel differences, near-lossless" },
-    { label: "Standard Codec Range", range: [25.0, 35.0], color: "amber", note: "Standard lossy compression (JPEG, WebP)" },
-    { label: "Severe Pixel Degradation", range: [15.0, 25.0], color: "rose", note: "Heavy noise, severe color tints, or blurring" }
-  ]}
-/>
-
----
-
-## Parameter Contract
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "Must include 'psnr'.",
-      default: "required"
-    },
-    "--image": {
-      type: "string (path)",
-      description: "Path to generated image file or folder.",
-      default: "required"
-    },
-    "--reference": {
-      type: "string (path)",
-      description: "Path to ground-truth reference image file or folder.",
-      default: "required"
-    },
-    "--prompt": {
-      type: "string",
-      description: "Not allowed for PSNR evaluation.",
-      default: "none"
-    }
-  }}
-/>
-
-<Callout type="info">
-  **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. While it provides mathematically exact noise metrics, a global color shift (e.g. slight warm tint) or a single-pixel spatial shift can drastically reduce PSNR while leaving perceived quality intact. Pair with **LPIPS** for holistic evaluation.
-</Callout>
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Pixel Reconstruction |
+| **CLI Metric** | `psnr` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pixel reconstruction) |
+| **Spatial Constraint** | Strictly identical dimensions required ($H_{\text{ref}} = H_{\text{gen}}$, $W_{\text{ref}} = W_{\text{gen}}$) |
+| **Output Scale** | Decibels (dB) in `[0.0, +inf)` |
+| **Direction** | **Higher is better** |
+| **Peak Power** | $\text{MAX}_I = 255.0$ (8-bit sRGB color space) |
+| **Upstream Source** | Classical Signal Processing / ITU-R BT.601 |
 
 ---
 
@@ -74,6 +41,13 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
 
 ---
 
+## Interpretation & Guidance
+
+- **Decibel Benchmarks**: PSNR above $35\text{ dB}$ represents excellent reconstruction with imperceptible pixel noise. Ranges between $25 - 35\text{ dB}$ reflect typical lossy codec compression (JPEG, WebP). Values below $20\text{ dB}$ indicate heavy noise or severe distortion.
+- **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. A uniform color tint or a 1-pixel shift drastically penalizes PSNR despite high human visual acceptability. Pair with **LPIPS** for balanced perceptual assessment.
+
+---
+
 ## Usage Examples
 
 <Steps>
@@ -85,7 +59,9 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics psnr             --reference path/to/reference.png             --image path/to/generated.png
+        image-evaluator --metrics psnr \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API">
@@ -111,7 +87,9 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics psnr             --reference path/to/reference_folder/             --image path/to/generated_folder/
+        image-evaluator --metrics psnr \
+            --reference path/to/reference_folder/ \
+            --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API">
@@ -129,4 +107,11 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## References
+
+- **Standard**: ITU-R Recommendation BT.601, *Studio encoding parameters of digital television for standard 4:3 and wide-screen 16:9 aspect ratios* ([ITU Recommendation](https://www.itu.int/rec/R-REC-BT.601))
+- **Foundational Text**: Gonzalez & Woods, *Digital Image Processing*, 4th Edition, Pearson.
 

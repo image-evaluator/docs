@@ -9,19 +9,31 @@ description: 基于 Inception-v3 pool3 特征空间高斯二阶统计量的生�
 
 ---
 
-## 指标诊断区间标尺
+## 核心规格
 
-<MetricScale
-  min={0.0}
-  max={100.0}
-  unit=""
-  direction="lower"
-  segments={[
-    { label: "前沿生成质感", range: [0.0, 15.0], color: "emerald", note: "商业级生图质感、细节真实且分布覆盖多样" },
-    { label: "标准基准水平", range: [15.0, 40.0], color: "amber", note: "学术研究标准 Baseline 表现" },
-    { label: "模式崩塌或失真", range: [40.0, 100.0], color: "rose", note: "样本单一性严重、伪影频发或特征严重漂移" }
-  ]}
-/>
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 群体生成分布差异 (Dataset Distribution) |
+| **命令行参数** | `--metrics fid` |
+| **输入要求** | `--image <目录>`, `--reference <目录>` (两项皆必须为文件夹路径) |
+| **禁止参数** | 单张图片路径, `--prompt` |
+| **样本量推荐** | 建议样本量 $N \ge 2048$（小样本下存在系统性虚高偏误） |
+| **标度范围** | 连续非负浮点数 `[0.0, +inf)` |
+| **取值方向** | **数值越低越优** (0.0 代表特征分布完全一致) |
+| **特征空间** | Inception-v3 `pool3` (2048 维，CleanFID 无重采样失真规范) |
+| **权威源** | [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid) |
+
+---
+
+## 理论公式推导
+
+两个多元高斯分布 $(\mu_r, \Sigma_r)$ 与 $(\mu_g, \Sigma_g)$ 之间的弗雷歇距离公式为：
+
+```math
+\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2\left(\Sigma_r \Sigma_g\right)^{1/2} \right)
+```
+
+分值越低，代表生成样本集的特征分布与真实样本集越接近。
 
 ---
 
@@ -48,18 +60,6 @@ FID 评测必须传入两个已存在的文件夹目录。与成对指标不同�
 
 ---
 
-## 理论公式推导
-
-两个多元高斯分布 $(\mu_r, \Sigma_r)$ 与 $(\mu_g, \Sigma_g)$ 之间的弗雷歇距离公式为：
-
-```math
-\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2\left(\Sigma_r \Sigma_g\right)^{1/2} \right)
-```
-
-分值越低，代表生成样本集的特征分布与真实样本集越接近。
-
----
-
 ## 调用示例
 
 <Steps>
@@ -71,7 +71,9 @@ FID 评测必须传入两个已存在的文件夹目录。与成对指标不同�
     <Tabs items={["命令行 CLI", "Python API 代码"]}>
       <Tab value="命令行 CLI">
         ```bash
-        image-evaluator --metrics fid             --reference path/to/real_images/             --image path/to/generated_images/
+        image-evaluator --metrics fid \
+            --reference path/to/real_images/ \
+            --image path/to/generated_images/
         ```
       </Tab>
       <Tab value="Python API 代码">
@@ -89,4 +91,12 @@ FID 评测必须传入两个已存在的文件夹目录。与成对指标不同�
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## 参考文献与项目源
+
+- **奠基论文**: Heusel et al., 2017, *GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium* (NeurIPS 2017, [arXiv:1706.08500](https://arxiv.org/abs/1706.08500))
+- **CleanFID 规范论文**: Parmar et al., 2022, *On Bug-Free and Clean Inception Metrics* (CVPR 2022, [arXiv:2104.11222](https://arxiv.org/abs/2104.11222))
+- **官方开源仓库**: [GaParmar/clean-fid](https://github.com/GaParmar/clean-fid)
 

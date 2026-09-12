@@ -9,48 +9,18 @@ The LAION Aesthetic Predictor estimates the visual appeal and compositional beau
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
-<MetricScale
-  min={1.0}
-  max={10.0}
-  unit=" / 10"
-  direction="higher"
-  segments={[
-    { label: "High Aesthetic", range: [6.5, 10.0], color: "emerald", note: "Professional photography & curated art" },
-    { label: "Acceptable", range: [4.5, 6.5], color: "amber", note: "Standard natural images & generation" },
-    { label: "Degraded Quality", range: [1.0, 4.5], color: "rose", note: "Severe blur, noise, or deformed composition" }
-  ]}
-/>
-
----
-
-## Parameter Contract
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "Must include 'aesthetic'.",
-      default: "required"
-    },
-    "--image": {
-      type: "string (path)",
-      description: "Path to input image file (.png, .jpg, .webp) or image directory.",
-      default: "required"
-    },
-    "--prompt": {
-      type: "string",
-      description: "Not allowed for aesthetic evaluation (raises error if provided).",
-      default: "none"
-    },
-    "--reference": {
-      type: "string",
-      description: "Not allowed for standalone aesthetic evaluation.",
-      default: "none"
-    }
-  }}
-/>
+| Property | Specification |
+| :--- | :--- |
+| **Category** | No-Reference Image Quality |
+| **CLI Metric** | `aesthetic` |
+| **Input Options** | `--image <file_or_dir>` (required) |
+| **Prohibited Options** | `--reference`, `--prompt` |
+| **Output Scale** | Continuous scalar float in `[1.0, 10.0]` |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | OpenCLIP `ViT-L-14` + linear MLP regression head |
+| **Upstream Source** | [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor) |
 
 ---
 
@@ -63,6 +33,14 @@ s_{\text{aesthetic}} = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right)
 ```
 
 The resulting scalar output ranges in $[1.0, 10.0]$, where higher values reflect superior perceived artistic quality.
+
+---
+
+## Interpretation & Guidance
+
+- **Score Distribution**: On general web and natural photography benchmarks, typical photos score between $4.5$ and $6.0$. High-grade professional photography and curated artwork typically score above $6.5$.
+- **No Ground-Truth Required**: Evaluates the image in isolation, ignoring semantic alignment with any prompt. Pair with **CLIP** or **PickScore** to assess prompt adherence.
+- **Protocol Consistency**: Compare aesthetic scores only between models evaluated under the identical OpenCLIP ViT-L-14 backbone weights.
 
 ---
 
@@ -115,4 +93,12 @@ The resulting scalar output ranges in $[1.0, 10.0]$, where higher values reflect
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## References
+
+- **Model Repository**: [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor)
+- **Dataset**: Schuhmann et al., 2022, *LAION-Aesthetics: Predictor Training and Datasets* ([LAION Blog](https://laion.ai/blog/laion-aesthetics/))
+- **Backbone**: Ilharco et al., 2021, *OpenCLIP* ([GitHub Repository](https://github.com/mlfoundations/open_clip))
 

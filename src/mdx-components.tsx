@@ -8,8 +8,6 @@ import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { File, Files, Folder } from 'fumadocs-ui/components/files';
 import { ImageComparison } from '@/components/ImageComparison';
 import { MetricVisualShowcase } from '@/components/MetricVisualShowcase';
-import { MetricScale } from '@/components/MetricScale';
-import { EvaluationWorkflow } from '@/components/EvaluationWorkflow';
 import type { MDXComponents } from 'mdx/types';
 
 export function useMDXComponents(components?: MDXComponents): MDXComponents {
@@ -30,11 +28,10 @@ export function useMDXComponents(components?: MDXComponents): MDXComponents {
     Folder,
     ImageComparison,
     MetricVisualShowcase,
-    MetricScale,
-    EvaluationWorkflow,
     ...components,
   };
 }
+
 
 
 

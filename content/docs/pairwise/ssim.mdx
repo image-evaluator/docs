@@ -9,52 +9,19 @@ The Structural Similarity Index Measure (SSIM) by Wang et al. (IEEE TIP 2004) ev
 
 ---
 
-## Benchmark Diagnostic Scale
+## Technical Specifications
 
-<MetricScale
-  min={0.0}
-  max={1.0}
-  unit=""
-  direction="higher"
-  segments={[
-    { label: "High Structural Fidelity", range: [0.85, 1.0], color: "emerald", note: "Preserves edges, contours, and surface textures" },
-    { label: "Noticeable Compression", range: [0.65, 0.85], color: "amber", note: "Lossy compression artifacts or slight blurring" },
-    { label: "Severe Degradation", range: [0.0, 0.65], color: "rose", note: "Heavy distortion, edge rupture, or geometric shifts" }
-  ]}
-/>
-
----
-
-## Parameter Contract
-
-<TypeTable
-  type={{
-    "--metrics": {
-      type: "string",
-      description: "Must include 'ssim'.",
-      default: "required"
-    },
-    "--image": {
-      type: "string (path)",
-      description: "Path to generated image file or folder.",
-      default: "required"
-    },
-    "--reference": {
-      type: "string (path)",
-      description: "Path to ground-truth reference image file or folder.",
-      default: "required"
-    },
-    "--prompt": {
-      type: "string",
-      description: "Not allowed for SSIM evaluation.",
-      default: "none"
-    }
-  }}
-/>
-
-<Callout type="warn">
-  **Minimum Spatial Size Requirement**: Because SSIM computes statistics over an $11 \times 11$ Gaussian sliding window, both images must measure at least 11 pixels in height and width. Inputs smaller than 11 pixels raise a `ValueError`.
-</Callout>
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Structural Fidelity |
+| **CLI Metric** | `ssim` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Dimension Floor** | Both dimensions must be $\ge 11$ pixels ($11 \times 11$ Gaussian window) |
+| **Output Scale** | Continuous scalar in `[-1.0, 1.0]` (1.0 denotes identity) |
+| **Direction** | **Higher is better** |
+| **Window Parameters** | $11 \times 11$ Gaussian, $\sigma=1.5, K_1=0.01, K_2=0.03, L=255$ |
+| **Upstream Source** | [scikit-image](https://scikit-image.org/) / [Wang et al., 2004](https://ieeexplore.ieee.org/document/1284395) |
 
 ---
 
@@ -76,6 +43,14 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
 
 ---
 
+## Interpretation & Guidance
+
+- **Benchmark Interpretation**: Scores above $0.85$ indicate strong structural preservation. Values in $0.65 - 0.85$ represent lossy compression artifacts or slight edge blurring. Values below $0.65$ denote severe structural tear or deformation.
+- **Fail-Fast Policy**: SSIM requires image dimensions to be at least $11 \times 11$ pixels. Inputs smaller than 11 pixels terminate with an explicit `ValueError`.
+- **Structural Focus**: Excellent for detecting geometric displacement and blur; complementary to LPIPS deep perceptual evaluation.
+
+---
+
 ## Usage Examples
 
 <Steps>
@@ -87,7 +62,9 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics ssim             --reference path/to/reference.png             --image path/to/generated.png
+        image-evaluator --metrics ssim \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
         ```
       </Tab>
       <Tab value="Python API">
@@ -113,7 +90,9 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
     <Tabs items={["CLI Command", "Python API"]}>
       <Tab value="CLI Command">
         ```bash
-        image-evaluator --metrics ssim             --reference path/to/reference_folder/             --image path/to/generated_folder/
+        image-evaluator --metrics ssim \
+            --reference path/to/reference_folder/ \
+            --image path/to/generated_folder/
         ```
       </Tab>
       <Tab value="Python API">
@@ -131,4 +110,11 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
     </Tabs>
   </Step>
 </Steps>
+
+---
+
+## References
+
+- **Paper**: Wang et al., 2004, *Image Quality Assessment: From Error Visibility to Structural Similarity* (IEEE Transactions on Image Processing, [DOI:10.1109/TIP.2003.819861](https://doi.org/10.1109/TIP.2003.819861))
+- **Standard Reference**: [Zhou Wang Academic Portal](https://ece.uwaterloo.ca/~z70wang/research/ssim/)
 
