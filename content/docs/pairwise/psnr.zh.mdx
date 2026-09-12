@@ -1,0 +1,97 @@
+---
+title: PSNR (峰值信噪比)
+description: 基于逐像素均方误差的底层物理级信号能量重构保真度
+---
+
+# PSNR (峰值信噪比)
+
+峰值信噪比（Peak Signal-to-Noise Ratio，简称 PSNR）是数字信号处理、图像编码与底层图像恢复领域的底线基准指标。该指标通过均方误差（MSE）量化生成图像相对参考原图在每一个像素通道上的绝对能量差值。
+
+---
+
+## 核心规格与指标特性
+
+| 参数维度 | 规范与技术事实 |
+| :--- | :--- |
+| **命令行参数** | `--metrics psnr` |
+| **输入约束** | 必须成对提供 `--image` 与 `--reference`（尺寸必须完全一致） |
+| **输出形式** | 位于区间 $$[0.0, +\infty)$$ 的分贝（dB）数值 |
+| **数值导向** | **越高越优**（高品质重构通常在 30-50 dB 之间；完全无损时为 `+inf`） |
+| **信号极大值** | 输入张量归一化至 $$[0.0, 1.0]$$，对应最大信号能量 $$\text{MAX}_I = 1.0$$ |
+| **零误差行为** | 当成对两图完全一致时，MSE = 0，系统严格返回 `float("inf")` |
+
+---
+
+## 理论推导与数学形式
+
+设三通道 RGB 图像分辨率为 $m \times n$：
+
+```math
+\text{MSE} = \frac{1}{3mn} \sum_{c=1}^3 \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j, c) - K(i, j, c)]^2
+```
+
+```math
+\text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right)
+```
+
+---
+
+## 调用范例 (CLI 与 Python API)
+
+<Steps>
+  <Step>
+    ### 单对图像重构信噪比评测
+
+    计算生成图像相对基准真值的重构分贝：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics psnr \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.psnr_predictor import PSNRPredictor
+
+        predictor = PSNRPredictor()
+        psnr_val = predictor.evaluate_psnr(
+            reference_path="path/to/reference.png",
+            generated_path="path/to/generated.png"
+        )
+        print(f"PSNR 峰值信噪比: {psnr_val:.2f} dB")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 目录批量逐对评测
+
+    对两个目录中同名文件逐对计算 PSNR 并统计均值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics psnr \
+            --reference path/to/reference_folder/ \
+            --image path/to/generated_folder/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.psnr_predictor import PSNRPredictor
+
+        predictor = PSNRPredictor()
+        mean_psnr = predictor.evaluate_folder_psnr(
+            reference_folder="path/to/reference_folder/",
+            generated_folder="path/to/generated_folder/"
+        )
+        print(f"平均 PSNR: {mean_psnr:.2f} dB")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

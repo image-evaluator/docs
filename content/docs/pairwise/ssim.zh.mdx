@@ -1,0 +1,95 @@
+---
+title: SSIM (结构相似性)
+description: 局部高斯滑动窗口亮度、对比度与结构三分量统计相似度
+---
+
+# SSIM (结构相似性)
+
+结构相似性度量（Structural Similarity Index Measure，简称 SSIM）由 Zhou Wang 等人于 IEEE TIP 2004 提出。与仅衡量绝对数值差异的传统均方误差不同，SSIM 模拟人类视觉系统对结构信息的感知敏感性，将图像解耦为亮度均值、对比度方差与结构协方差三个独立分量。
+
+---
+
+## 核心规格与指标特性
+
+| 参数维度 | 规范与技术事实 |
+| :--- | :--- |
+| **命令行参数** | `--metrics ssim` |
+| **输入约束** | 必须成对提供 `--image` 与 `--reference`（图像尺寸不得低于 $$11 \times 11$$ 像素） |
+| **输出形式** | 位于区间 $$[-1.0, 1.0]$$ 的标量浮点数 |
+| **数值导向** | **越高越优**（1.0 代表结构完全一致） |
+| **滑动窗口** | $$11 \times 11$$ 高斯局部加权滑动窗口，标准差 $$\sigma = 1.5$$ |
+| **多通道协议** | RGB 三个通道分别独立计算 SSIM，返回三通道非加权算术均值 |
+
+---
+
+## 理论推导与数学形式
+
+对于局部图像块 $x$ 与 $y$，SSIM 综合亮度分量 $l(x, y)$、对比度分量 $c(x, y)$ 与结构分量 $s(x, y)$：
+
+```math
+\text{SSIM}(x, y) = \frac{(2\mu_x \mu_y + C_1)(2\sigma_{xy} + C_2)}{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}
+```
+
+其中 $C_1 = (K_1 L)^2, C_2 = (K_2 L)^2$，默认参数为 $K_1 = 0.01, K_2 = 0.03, L = 1.0$。
+
+---
+
+## 调用范例 (CLI 与 Python API)
+
+<Steps>
+  <Step>
+    ### 单对图像结构相似性打分
+
+    评估单幅生成图像相对基准真值的结构相似度：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics ssim \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.ssim_predictor import SSIMPredictor
+
+        predictor = SSIMPredictor()
+        similarity = predictor.evaluate_ssim(
+            reference_path="path/to/reference.png",
+            generated_path="path/to/generated.png"
+        )
+        print(f"SSIM 结构相似度: {similarity:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 目录批量逐对评测
+
+    对两个目录中同名文件执行逐对 SSIM 计算并统计均值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics ssim \
+            --reference path/to/reference_folder/ \
+            --image path/to/generated_folder/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.ssim_predictor import SSIMPredictor
+
+        predictor = SSIMPredictor()
+        mean_ssim = predictor.evaluate_folder_ssim(
+            reference_folder="path/to/reference_folder/",
+            generated_folder="path/to/generated_folder/"
+        )
+        print(f"平均 SSIM: {mean_ssim:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

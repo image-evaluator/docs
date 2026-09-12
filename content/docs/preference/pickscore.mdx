@@ -1,166 +1,99 @@
 ---
-title: PickScore (真实偏好对齐)
-description: 基于真实人类成对偏好反馈微调的生成质量打分
+title: PickScore (Human Preference Alignment)
+description: Fine-tuned CLIP ViT-H-14 scoring model trained on large-scale human choice data
 ---
 
-# 人类偏好对齐
+# PickScore (Human Preference Alignment)
 
-人类偏好对齐指标用于评估生成图像在符合文本提示词意图的前提下，与真实人类审美与主观偏好的贴合程度。传统的对比图文相似度指标主要衡量宽泛的宏观概念重合，往往对细节伪影、构图失衡以及提示词关键细节的忽略缺乏足够的惩罚。该指标基于大规模真实用户盲选偏好数据集微调超大规模视觉语言模型，输出具备概率解释性的对齐打分。
+PickScore, introduced by Kirstain et al. (NeurIPS 2023), measures how well generated images align with real-world human preferences. Fine-tuned on the large-scale Pick-a-Pic dataset containing over 500,000 empirical human choices, it goes beyond pure semantic coverage to capture visual aesthetics, artifact avoidance, and compositional balance.
 
 ---
 
-## 技术规格与基本参数
+## Technical Specifications
 
-| 参数维度 | 详细规格说明 |
+| Parameter | Specification |
 | :--- | :--- |
-| **所属分类** | 人类主观偏好与文生图精细对齐 |
-| **命令行标识** | `pickscore` |
-| **输入约束** | 必须提供待测图像路径 `--image`（单文件或目录）以及对应文本提示词 `--prompt` |
-| **输出形式** | 实数标量浮点数（在常见基准数据集上典型取值分布于 15.0 至 25.0 区间） |
-| **数值导向** | **数值越高越优**（更高分值代表更大概率受到人类评测者的普遍青睐） |
-| **骨干模型** | 超大参数量视觉变换器架构（约 9.86 亿参数量） |
-| **预训练权重** | 官方微调模型权重 `yuvalkirstain/PickScore_v1` |
-| **处理器依赖** | 对应多模态特征处理器组件 |
-| **学术出处** | Kirstain et al., NeurIPS 2023 / 基于成对偏好模型微调 |
+| **CLI Argument** | `--metrics pickscore` |
+| **Input Constraint** | `--image` and `--prompt` required |
+| **Output Type** | Continuous scalar float (higher indicates stronger human preference) |
+| **Direction** | **Higher is better** |
+| **Backbone Model** | Fine-tuned `yuvalkirstain/PickScore_v1` (based on OpenCLIP `ViT-H-14`) |
+| **Training Basis** | > 500k real user preference comparisons from Pick-a-Pic |
 
 ---
 
-## 理论背景与打分公式
+## Formulation
 
-### 数学形式化定义
-
-给定文本提示词 $$p$$ 与生成的图像像素张量 $$x$$，分别经由文本编码器与图像编码器提取高维特征表示：
+Given text prompt $y$ and candidate image $x$, PickScore computes the preference logit via normalized visual and textual embeddings:
 
 ```math
-e(p) = \text{TextEncoder}(p), \quad e(x) = \text{ImageEncoder}(x)
-
+s(x, y) = \cos(\Phi_{\text{visual}}(x), \Phi_{\text{text}}(y))
 ```
 
-对特征向量执行标准化 $$L_2$$ 范数归一化处理：
+The probability that image $x_1$ is preferred over $x_2$ given prompt $y$ models the Bradley-Terry choice probability:
 
 ```math
-\hat{e}(p) = \frac{e(p)}{\|e(p)\|_2}, \quad \hat{e}(x) = \frac{e(x)}{\|e(x)\|_2}
-
-```
-
-将单位向量的点积相似度乘以训练期间学习获得的最优温度缩放系数：
-
-```math
-\text{PickScore}(p, x) = \exp(\text{logit\_scale}) \cdot (\hat{e}(p) \cdot \hat{e}(x))
-
-```
-
-### 概率偏好解释
-
-在同一提示词 $$p$$ 条件下对比任意两个候选生成图像 $$x_i$$ 与 $$x_j$$ 时，依据偏好概率模型，人类评测者倾向于选择图像 $$x_i$$ 的先验概率遵循分值差值的逻辑函数：
-
-```math
-P(x_i \succ x_j) = \frac{1}{1 + \exp\left(-\left(\text{PickScore}(p, x_i) - \text{PickScore}(p, x_j)\right)\right)}
-
-```
-
-当对一组 $$K$$ 张候选图片进行联合横向排优时，应用归一化指数变换即可导出人类选择的离散概率分布：
-
-```math
-P(x_i) = \frac{\exp(\text{PickScore}(p, x_i))}{\sum_{k=1}^K \exp(\text{PickScore}(p, x_k))}
-
+P(x_1 \succ x_2 \mid y) = \frac{\exp(s(x_1, y) / \tau)}{\exp(s(x_1, y) / \tau) + \exp(s(x_2, y) / \tau)}
 ```
 
 ---
 
-## 输入契约与运行模式
-
-### 单图评分模式
-
-对单张输入图像依据给定提示词直接输出绝对校准分值：
-
-```bash
-image-evaluator --metrics pickscore \
-    --image sample.png \
-    --prompt "a photograph of a cat exploring the cosmos"
-
-```
-
-### 目录批量评测模式
-
-递归检索指定目录下所有受支持格式的图像文件，分别计算对同一提示词的偏好打分，最终返回全目录算术平均值：
-
-```bash
-image-evaluator --metrics pickscore \
-    --image ./generated_folder/ \
-    --prompt "a photograph of a cat exploring the cosmos"
-
-```
-
-### 严格校验与错误阻断
-
-- **提示词必填约束**：只要启用了本指标，`--prompt` 参数即为强制必选；若缺失或传入空字符串，命令行将立即阻断并以错误代码终止。
-- **无须参考图参数**：该指标属于无参考主观偏好评估，不读取 `--reference` 参数。若用户在混合评测中传入了参考目录供其他指标使用，本指标在计算时完全独立互不干扰。
-
----
-
-## 硬件开销与离线缓存策略
-
-| 资源类别 | 详细规格与运行表现 |
-| :--- | :--- |
-| **权重文件规模** | 安全张量模型权重约 3.94 GB |
-| **磁盘缓存位置** | 默认保存在用户本地缓存目录（支持通过环境变量重定向） |
-| **显存峰值需求** | 半精度推理下约占用 2.5 GB 至 3.5 GB 显存 |
-| **内存峰值需求** | 单精度运算下约占用 4.5 GB 至 5.0 GB 系统内存 |
-| **支持加速架构** | 适配图形处理器加速、苹果芯片统一内存加速及通用处理器 |
-
----
-
-## 命令行调用指南
+## Usage Examples
 
 <Steps>
   <Step>
-    独立调用。
+    ### Single Image Human Preference Score
 
-    针对单张图像计算人类偏好得分：
+    Evaluate synthetic image appeal against human preference standards:
 
-    ```bash
-    image-evaluator --metrics pickscore \
-        --image output.png \
-        --prompt "an oil painting of a cottage beside a river"
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics pickscore \
+            --image sample.png \
+            --prompt "a photorealistic oil painting of a cottage by a lake"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
 
-    ```
+        predictor = PickScorePredictor()
+        score = predictor.evaluate_pickscore(
+            image_or_folder="sample.png",
+            prompt="a photorealistic oil painting of a cottage by a lake"
+        )
+        print(f"PickScore: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
   </Step>
 
   <Step>
-    多维度联合评测。
+    ### Directory Batch Evaluation
 
-    联合美学质量、图文相似度与人类偏好评分，构建多重视角评估矩阵：
+    Evaluate an entire directory against a prompt:
 
-    ```bash
-    image-evaluator --metrics aesthetic clip pickscore \
-        --image output.png \
-        --prompt "an oil painting of a cottage beside a river"
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics pickscore \
+            --image path/to/images_dir/ \
+            --prompt "cinematic lighting portrait of an elderly wizard"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
 
-    ```
+        predictor = PickScorePredictor()
+        mean_score = predictor.evaluate_pickscore(
+            image_or_folder="path/to/images_dir/",
+            prompt="cinematic lighting portrait of an elderly wizard"
+        )
+        print(f"Mean PickScore: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
   </Step>
 </Steps>
-
----
-
-## 深入学术细节与不可比边界
-
-<Accordions>
-  <Accordion title="延迟加载架构与内存优化">
-    系统严格实行惰性按需加载设计。在未在命令行显式声明该指标时，不仅不进行近 4GB 的模型权重加载，底层模型定义库亦不会被静默载入，确保在执行轻量级指标评测时实现极速毫秒级响应，杜绝常驻内存泄漏风险。
-  </Accordion>
-
-  <Accordion title="跨提示词不可比性与实验控制">
-    绝对得分高度依赖于提示词的词频特征、语义抽象层级与文本嵌入范数。跨越不同提示词直接比较绝对打分（例如将简单名词提示词的得分与复杂场景提示词的得分横向对比）在学术上是不成立的。评测不同模型或采样算法时，必须确保测试提示词完全一致。
-  </Accordion>
-
-  <Accordion title="硬件资源需求与运行环境配置">
-    在显存受限的环境中，建议优先配置支持半精度推理的加速后端。一旦权重首次从云端镜像完整下载至本地缓存，后续所有评估运算均在完全断网环境下离线运行，满足保密数据集与学术离线实验环境的严苛要求。
-  </Accordion>
-
-  <Accordion title="学术文献与参考项目">
-    - 奠基论文：Kirstain et al., 2023, *Pick-a-Pic: An Open Dataset of User Preferences for Text-to-Image Generation* (NeurIPS 2023)
-    - 官方发布权重：`yuvalkirstain/PickScore_v1`
-    - 开源依赖栈：Hugging Face 变换器库生态
-  </Accordion>
-</Accordions>

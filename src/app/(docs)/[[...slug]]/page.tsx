@@ -12,8 +12,11 @@ import { useMDXComponents } from '@/mdx-components';
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
-  const { slug } = await props.params;
-  const page = source.getPage(slug);
+  const { slug = [] } = await props.params;
+  const isZh = slug[0] === 'zh';
+  const lang = isZh ? 'zh' : 'en';
+  const pageSlug = isZh ? slug.slice(1) : slug;
+  const page = source.getPage(pageSlug, lang);
   if (!page) {
     notFound();
   }
@@ -32,14 +35,23 @@ export default async function Page(props: {
 }
 
 export async function generateStaticParams() {
-  return source.generateParams();
+  const enPages = source.getPages('en').map((p) => ({
+    slug: p.slugs,
+  }));
+  const zhPages = source.getPages('zh').map((p) => ({
+    slug: ['zh', ...p.slugs],
+  }));
+  return [...enPages, ...zhPages];
 }
 
 export async function generateMetadata(props: {
   params: Promise<{ slug?: string[] }>;
 }): Promise<Metadata> {
-  const { slug } = await props.params;
-  const page = source.getPage(slug);
+  const { slug = [] } = await props.params;
+  const isZh = slug[0] === 'zh';
+  const lang = isZh ? 'zh' : 'en';
+  const pageSlug = isZh ? slug.slice(1) : slug;
+  const page = source.getPage(pageSlug, lang);
   if (!page) {
     notFound();
   }

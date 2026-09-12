@@ -1,0 +1,65 @@
+---
+title: FID (弗雷歇感知距离)
+description: Inception-v3 特征空间高斯协方差二次型距离
+---
+
+# FID (弗雷歇感知距离)
+
+弗雷歇初始距离（Fréchet Inception Distance，简称 FID）由 Martin Heusel 等人于 NeurIPS 2017 提出。它是度量生成对抗网络（GAN）与扩散模型（Diffusion Models）生成图像集合质量与多样性的学术界黄金标准。
+
+---
+
+## 核心规格与指标特性
+
+| 参数维度 | 规范与技术事实 |
+| :--- | :--- |
+| **命令行参数** | `--metrics fid` |
+| **输入约束** | 双方输入 `--image` 与 `--reference` 必须均为包含图像的已存在文件夹 |
+| **输出形式** | 位于区间 $$[0.0, +\infty)$$ 的无量纲标量浮点数 |
+| **数值导向** | **越低越优**（数值越小代表生成图库与真实图库的分布越一致） |
+| **特征提取器** | 官方 Inception-v3 模型（倒数第二层 `pool3` 提取的 2048 维特征） |
+| **样本量约束** | 存在小样本正向偏差，学术严谨对比强烈建议样本量 $$N \ge 2048$$ |
+
+---
+
+## 理论推导与数学形式
+
+将真实图片集与生成图片集分别输入 Inception-v3，计算提取出的 2048 维特征向量的均值向量 $\mu_r, \mu_g$ 以及经验协方差矩阵 $\Sigma_r, \Sigma_g$：
+
+```math
+\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2} \right)
+```
+
+---
+
+## 调用范例 (CLI 与 Python API)
+
+<Steps>
+  <Step>
+    ### 数据集生成分布距离计算
+
+    对比生成数据集与基准真实数据集的特征高斯距离：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics fid \
+            --reference path/to/real_dataset/ \
+            --image path/to/generated_dataset/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.fid_predictor import FIDPredictor
+
+        predictor = FIDPredictor()
+        fid_score = predictor.evaluate_fid(
+            reference_folder="path/to/real_dataset/",
+            generated_folder="path/to/generated_dataset/"
+        )
+        print(f"FID 分布距离: {fid_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

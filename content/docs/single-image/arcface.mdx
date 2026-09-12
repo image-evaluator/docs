@@ -1,116 +1,96 @@
 ---
-title: ArcFace (主体身份保真)
-description: 深度人脸特征空间余弦距离与身份一致性度量
+title: ArcFace (Subject Identity Fidelity)
+description: Face identity cosine distance evaluation via InsightFace buffalo_l 512-dimensional embeddings
 ---
 
-# 主体保真度
+# ArcFace (Subject Identity Fidelity)
 
-主体保真度指标专门用于评估生成人像与参考人像之间生物面部特征与身份归属的一致程度。通过高精度深度人脸识别模型提取五官与骨骼几何特征，在单位超球面隐空间中计算特征向量的角余弦距离，量化个性化定制算法对人物核心身份特征的保持能力。
+ArcFace evaluates subject facial identity preservation across personalization, face-swapping, and subject-driven generation tasks. Powered by InsightFace `buffalo_l`, it extracts 512-dimensional deep facial representations and calculates the angular cosine distance between the generated subject and a ground-truth reference photo.
 
 ---
 
-## 技术规格与基本参数
+## Technical Specifications
 
-| 参数维度 | 详细规格说明 |
+| Parameter | Specification |
 | :--- | :--- |
-| **所属分类** | 面部身份保真度（成对参考评估） |
-| **命令行标识** | `arcface` |
-| **输入约束** | `--image`（生成人像路径或目录）与 `--reference`（参考真实人像路径或目录）必须同时提供 |
-| **输出形式** | 位于区间 $$[0.0, 2.0]$$ 的非负连续标量浮点数 |
-| **数值导向** | **数值越低越优**（0.0 代表特征向量完全重合，身份最吻合） |
-| **主干网络** | InsightFace `buffalo_l` 工业级人脸分析模型包 |
-| **特征维度** | 512 维单位归一化深层人脸嵌入向量 |
-| **学术出处** | Deng et al., CVPR 2019 / 加性角度边距人脸识别算法 |
+| **CLI Argument** | `--metrics arcface` |
+| **Input Constraint** | Paired `--image` and `--reference` (files or directories with matching stems) |
+| **Output Type** | Continuous scalar float in `[0.0, 2.0]` |
+| **Direction** | **Lower is better** (< 0.40 indicates high identity consistency, 0.0 = identical face) |
+| **Backbone Model** | InsightFace `buffalo_l` (ResNet-50 / ArcFace loss) |
+| **Threshold Guidance** | Cosine distance < 0.40 indicates same identity; > 0.60 indicates identity drift |
 
 ---
 
-## 理论背景与度量公式
+## Formulation
 
-输入图像首先经过高灵敏度人脸检测器精确定位关键点并完成仿射对齐。随后由特征识别主干网络将校正后的人脸区域映射至 512 维特征向量 $$u$$ 与 $$v$$。
-
-通过对特征向量执行标准化内积计算余弦相似度，并转化为余弦距离：
+Let $\mathbf{f}_1, \mathbf{f}_2 \in \mathbb{R}^{512}$ be the $L_2$-normalized facial feature vectors:
 
 ```math
-d_{\text{ArcFace}}(u, v) = 1 - \frac{u \cdot v}{\|u\|_2 \|v\|_2}
-
+\text{Distance}(\mathbf{f}_1, \mathbf{f}_2) = 1 - \frac{\mathbf{f}_1 \cdot \mathbf{f}_2}{\|\mathbf{f}_1\|_2 \|\mathbf{f}_2\|_2}
 ```
 
-在数学性质上：
-- 当 $$d = 0.0$$ 时，代表两张图像提取出的身份嵌入方向完全相同。
-- 当两张人脸特征呈直角正交时，$$d = 1.0$$。
-- 当两张图像属于完全无关的不同个体时，在典型的公开数据集基准上，距离通常分布在 0.65 至 0.90 的数值区间。
+If multiple faces are detected, the detector automatically selects the dominant face based on bounding-box area and landmark confidence.
 
 ---
 
-## 结果解读与判定准则
-
-- **无绝对裁决阈值**：同一身份判定阈值受到光照强度、姿态偏角、遮挡程度以及生成风格化因子的强烈影响，严禁直接套用未经校准的固定截断值。
-- **协议一致性准则**：仅可在相同的人脸检测算法包版本、对齐裁剪管道及浮点精度的前提下对比模型间的优劣。
-- **结合美学指标研判**：个性化算法可能由于过拟合产生死板复制原图的高保真假象，需综合考量画面构图与提示词语义匹配度。
-
----
-
-## 适用场景与技术局限
-
-- **高度专一的面部度量**：该指标仅量化人脸五官与面部骨骼生理特征，对发型轮廓、衣物纹理、身形比例及背景上下文完全不敏感。
-- **强依赖人脸检测有效性**：当生成画面中面部发生过度遮挡、大角度侧倾、极端模糊或严重形变时，人脸检测失败会导致该指标无法计算。
-- **适用任务领域**：广泛应用于轻量级微调方案、免训练定制生成、换脸重演及多视角角色一致性评测任务。
-
----
-
-## 命令行调用指南
+## Usage Examples
 
 <Steps>
   <Step>
-    成对单图评估。
+    ### Single Pair Face Identity Check
 
-    计算单张生成人像与单张参考真实照片之间的身份余弦距离：
+    Verify whether an edited or generated portrait preserves the reference person's identity:
 
-    ```bash
-    image-evaluator --metrics arcface \
-        --image path/to/generated_face.png \
-        --reference path/to/real_reference.png
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics arcface \
+            --reference real_face.png \
+            --image generated_face.png
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
 
-    ```
+        predictor = ArcFaceDistPredictor()
+        distance = predictor.evaluate_arcface_distance(
+            reference_path="real_face.png",
+            generated_path="generated_face.png"
+        )
+        print(f"ArcFace Cosine Distance: {distance:.4f}")
+        print("Verdict: " + ("Same Identity" if distance < 0.45 else "Identity Drift Detected"))
+        ```
+      </Tab>
+    </Tabs>
   </Step>
 
   <Step>
-    目录批量比对。
+    ### Directory Batch Evaluation
 
-    对两个目录中的成对人像按文件名升序严格配对并计算批次平均距离：
+    Evaluate facial identity preservation across pairs of images with matching stems:
 
-    ```bash
-    image-evaluator --metrics arcface \
-        --image path/to/generated_faces/ \
-        --reference path/to/real_references/
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics arcface \
+            --reference path/to/real_faces/ \
+            --image path/to/generated_faces/
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
 
-    ```
+        predictor = ArcFaceDistPredictor()
+        mean_dist = predictor.evaluate_folder_arcface_distance(
+            reference_folder="path/to/real_faces/",
+            generated_folder="path/to/generated_faces/"
+        )
+        print(f"Mean ArcFace Distance: {mean_dist:.4f}")
+        ```
+      </Tab>
+    </Tabs>
   </Step>
 </Steps>
-
----
-
-## 深入学术细节与边界处理
-
-<Accordions>
-  <Accordion title="人脸检测机制与异常处理">
-    预测器采用 `FaceAnalysis(name="buffalo_l")` 模块执行人脸检测。当输入画面中检测到多张人脸时，默认选取检测置信度最高的主人脸特征（即首个人脸索引 `faces[0].embedding`）。若生成图或参考图中任意一方未能检出有效人脸，预测器将返回缺失值并妥善处理，避免抛出底层不可恢复异常。
-  </Accordion>
-
-  <Accordion title="批量配对契约与对齐准则">
-    在目录批量评测模式下，系统执行字典序严格配对机制：
-    
-    ```python
-    zip(sorted(reference_files), sorted(generated_files))
-    
-    ```
-    
-    双方目录内的有效图像文件数量必须完全一致。若在某一图像对中因面部检测失败导致分值缺失，系统将依据有效样本进行过滤聚合，保障最终统计均值的数值可靠性。
-  </Accordion>
-
-  <Accordion title="学术文献与参考项目">
-    - 奠基论文：Deng et al., 2019, *ArcFace: Additive Angular Margin Loss for Deep Face Recognition* (arXiv:1801.07698)
-    - 官方实现开源库：`deepinsight/insightface`
-    - 模型权重规格：`buffalo_l` 官方预训练识别包
-  </Accordion>
-</Accordions>

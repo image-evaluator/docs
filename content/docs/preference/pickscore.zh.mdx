@@ -1,0 +1,99 @@
+---
+title: PickScore (真实偏好对齐)
+description: 基于真实人类成对偏好反馈微调的生成质量打分
+---
+
+# PickScore (真实偏好对齐)
+
+PickScore 由 Yuval Kirstain 等人于 NeurIPS 2023 提出。与传统的 CLIP 仅仅关注文本关键词是否在画面中出现不同，PickScore 基于大规模真实人类选择数据集 Pick-a-Pic（包含超过 50 万条人类在真实文生图应用中两两比对的选择记录），微调自 OpenCLIP `ViT-H-14`，能够敏锐捕捉人类真实审美喜好、负面瑕疵厌恶以及构图完整性。
+
+---
+
+## 核心规格与指标特性
+
+| 参数维度 | 规范与技术事实 |
+| :--- | :--- |
+| **命令行参数** | `--metrics pickscore` |
+| **输入约束** | 必须同时提供 `--image` 与 `--prompt`（文本或文件） |
+| **输出形式** | 连续标量浮点数 |
+| **数值导向** | **越高越优**（分值越高代表越贴近人类大众在相同提示词下的主流偏好） |
+| **微调骨干** | `yuvalkirstain/PickScore_v1`（OpenCLIP `ViT-H-14` 大规模微调模型） |
+| **核心优势** | 深度捕捉画面微观伪影、过饱和失真与光影不合理，避免指标“刷分假象” |
+
+---
+
+## 数学原理与计算形式
+
+给定提示词 $y$ 与生成候选图 $x$，PickScore 计算归一化特征余弦相似度作为偏好对数几率（Logit）：
+
+```math
+s(x, y) = \cos(\Phi_{\text{visual}}(x), \Phi_{\text{text}}(y))
+```
+
+在两张候选生成图 $x_1$ 与 $x_2$ 之间，人类偏好 $x_1$ 的概率服从 Bradley-Terry 模型：
+
+```math
+P(x_1 \succ x_2 \mid y) = \frac{\exp(s(x_1, y) / \tau)}{\exp(s(x_1, y) / \tau) + \exp(s(x_2, y) / \tau)}
+```
+
+---
+
+## 调用范例 (CLI 与 Python API)
+
+<Steps>
+  <Step>
+    ### 单图人类偏好打分
+
+    评估单幅图像是否符合人类主观审美偏好：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics pickscore \
+            --image sample.png \
+            --prompt "a photorealistic oil painting of a cottage by a lake"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
+
+        predictor = PickScorePredictor()
+        score = predictor.evaluate_pickscore(
+            image_or_folder="sample.png",
+            prompt="a photorealistic oil painting of a cottage by a lake"
+        )
+        print(f"PickScore 偏好得分: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 目录批量偏好评测
+
+    对图库执行批量偏好打分并返回算术均值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics pickscore \
+            --image path/to/images_dir/ \
+            --prompt "cinematic lighting portrait of an elderly wizard"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.pickscore_predictor import PickScorePredictor
+
+        predictor = PickScorePredictor()
+        mean_score = predictor.evaluate_pickscore(
+            image_or_folder="path/to/images_dir/",
+            prompt="cinematic lighting portrait of an elderly wizard"
+        )
+        print(f"平均 PickScore: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

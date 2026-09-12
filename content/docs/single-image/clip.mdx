@@ -1,134 +1,93 @@
 ---
-title: CLIP Score (图文语义对齐)
-description: 多模态嵌入空间图文余弦相似度客观评测
+title: CLIP Score (Text-Image Alignment)
+description: Objective cosine similarity in multimodal embedding space via clip-vit-base-patch32
 ---
 
-# 图文语义匹配
+# CLIP Score (Text-Image Alignment)
 
-图文语义匹配指标用于评估生成图像与输入文本描述（提示词）之间的多模态语义一致性。该指标借助大规模图文对比学习所构建的共享嵌入空间，分别将图像与文本映射为高维特征向量，通过余弦相似度定量表征文本意图在画面中的还原程度。
+CLIP Score measures the semantic alignment between a generated image and its guiding text prompt. It evaluates whether the visual concepts described in the prompt are faithfully manifested in the synthesized output by projecting both modalities into a shared normalized embedding space.
 
 ---
 
-## 技术规格与基本参数
+## Technical Specifications
 
-| 参数维度 | 详细规格说明 |
+| Parameter | Specification |
 | :--- | :--- |
-| **所属分类** | 视觉语言多模态语义对齐 |
-| **命令行标识** | `clip` |
-| **输入约束** | `--image`（单个图像文件或图像目录）与 `--prompt`（文本字符串、提示词文本文件或提示词目录）必须同时提供 |
-| **输出形式** | 位于区间 $$[-1.0, 1.0]$$ 的连续标量浮点数 |
-| **数值导向** | **数值越高越优**（更高分值表示生成画面与文本提示词语义越吻合） |
-| **主干网络** | 官方预训练模型 `openai/clip-vit-base-patch32` |
-| **底层实现依赖** | 依托 Hugging Face 变换器与 PyTorch 张量运算 |
-| **学术出处** | Hessel et al., CVPR 2021 / 经典对比语言图像预训练架构 |
+| **CLI Argument** | `--metrics clip` |
+| **Input Constraint** | `--image` (file/directory) and `--prompt` (text or prompt file) |
+| **Output Type** | Continuous float in `[0.0, 100.0]` |
+| **Direction** | **Higher is better** |
+| **Backbone Architecture** | OpenAI `clip-vit-base-patch32` |
+| **Formula Reference** | Hessel et al., "CLIPScore: A Reference-free Evaluation Metric for Image Captioning", EMNLP 2021 |
 
 ---
 
-## 理论背景与计算公式
+## Formulation
 
-给定输入的图像像素张量 $$x_{\text{img}}$$ 与文本描述序列 $$x_{\text{txt}}$$，分别通过图像编码器与文本编码器提取高维隐空间特征向量：
+Let $\mathbf{e}_I = \frac{\Phi_{\text{visual}}(I)}{\|\Phi_{\text{visual}}(I)\|_2}$ and $\mathbf{e}_T = \frac{\Phi_{\text{text}}(T)}{\|\Phi_{\text{text}}(T)\|_2}$ be the $L_2$-normalized visual and text embeddings:
 
 ```math
-v_{\text{img}} = \text{ImageEncoder}(x_{\text{img}}), \quad v_{\text{txt}} = \text{TextEncoder}(x_{\text{txt}})
-
+\text{CLIP-Score}(I, T) = \max(100 \cdot \cos(\mathbf{e}_I, \mathbf{e}_T), 0) = \max(100 \cdot (\mathbf{e}_I \cdot \mathbf{e}_T), 0)
 ```
 
-随后执行严格的 $$L_2$$ 范数归一化，通过内积计算原始余弦相似度：
-
-```math
-S_{\text{CLIP}}(v_{\text{img}}, v_{\text{txt}}) = \frac{v_{\text{img}}}{\|v_{\text{img}}\|_2} \cdot \frac{v_{\text{txt}}}{\|v_{\text{txt}}\|_2}
-
-```
-
-该指标输出值域处于 $$[-1.0, 1.0]$$ 之间。在实际生成式任务评估中，合理匹配的图文对打分通常集中于 0.20 至 0.35 的典型数值区间。
-
 ---
 
-## 适用场景与任务边界
-
-### 文本生成图像提示词遵从度
-
-本指标专门针对标准文本生成图像（文生图）任务设计，用于验证生成模型是否正确遵循了提示词中的核心实体、属性修饰与宏观场景描述。例如对提示词 `"a golden retriever running across a sunny lawn"` 的生成效果进行基准定量打分。
-
-### 图像编辑场景适用性剖析
-
-该指标**不适合单独作为图像局部编辑或重绘任务的充分评估指标**：
-- **无法度量原图结构保留**：仅针对编辑指令（如 `"make it oil painting"`）计算图文匹配度，无法验证未经编辑的背景或主体结构是否发生非预期畸变。
-- **需多维联合约束**：针对图像编辑评测，必须结合成对保真度指标（如深度感知距离、结构相似度）以及主体保真度指标进行联合评估。
-- **纯图像比对不可用**：当前命令行实现严格聚焦于图文匹配，不支持图像对图像的直接表征比对。
-
----
-
-## 结果解读与评测准则
-
-- **无跨域通用阈值**：绝对得分随提示词长度、词汇抽象度与概念复杂度剧烈波动，不可跨越不同文本描述横向对比绝对分值。
-- **严格控制实验基线**：评测不同生成模型时，必须固定完全一致的测试提示词集合与主干网络权重，基于相对分值增益得出结论。
-- **防范指标过拟合**：部分模型可能通过强化高频显式物体堆叠提升该指标，但牺牲了画面构图的美感与真实感，需结合审美评分与人类偏好评分联合研判。
-
----
-
-## 命令行调用指南
+## Usage Examples
 
 <Steps>
   <Step>
-    单图图文匹配。
+    ### Single Image Alignment
 
-    对单张生成图与对应文本提示词进行余弦相似度打分：
+    Evaluate how closely an image follows a given text prompt:
 
-    ```bash
-    image-evaluator --metrics clip \
-        --image path/to/sample.png \
-        --prompt "a cinematic photograph of an old library"
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics clip \
+            --image sample.png \
+            --prompt "an astronaut riding a horse on mars"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.clip_score_predictor import ClipScorePredictor
 
-    ```
+        predictor = ClipScorePredictor()
+        score = predictor.evaluate_clip_score(
+            image_path="sample.png",
+            prompt="an astronaut riding a horse on mars"
+        )
+        print(f"CLIP Score: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
   </Step>
 
   <Step>
-    目录批量评测。
+    ### Directory Batch Evaluation
 
-    批量评估生成图像目录下所有样本针对指定提示词的平均匹配水平：
+    Evaluate an entire directory against a shared prompt:
 
-    ```bash
-    image-evaluator --metrics clip \
-        --image path/to/image_folder/ \
-        --prompt "a cinematic photograph of an old library"
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics clip \
+            --image path/to/images_dir/ \
+            --prompt "photorealistic landscape at sunset"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator.clip_score_predictor import ClipScorePredictor
 
-    ```
+        predictor = ClipScorePredictor()
+        mean_score = predictor.evaluate_folder_clip_score(
+            folder_path="path/to/images_dir/",
+            prompt="photorealistic landscape at sunset"
+        )
+        print(f"Mean CLIP Score: {mean_score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
   </Step>
 </Steps>
-
----
-
-## 深入学术细节与协议区别
-
-<Accordions>
-  <Accordion title="论文定义与仓库实现的差异">
-    在学术文献（Hessel et al., 2021）的初始定义中，评估分值被形式化为：
-    
-    ```math
-    \text{CLIPScore} = 2.5 \cdot \max(\cos(e_I, e_T), 0)
-    
-    ```
-    
-    论文实现引入了 $$2.5$$ 倍的人为放大系数并执行了非负截断。
-    
-    而在本工程实现中，保持了纯粹的原始 $$L_2$$ 归一化内积余弦相似度：
-    
-    ```math
-    S_{\text{raw}} = \frac{v_{\text{img}} \cdot v_{\text{txt}}}{\|v_{\text{img}}\|_2 \|v_{\text{txt}}\|_2}
-    
-    ```
-    
-    不进行任何缩放与人工截断，完整保留数学空间的几何距离特性。使用者在撰写学术论文时，需明确指出所采用的具体计算形式。
-  </Accordion>
-
-  <Accordion title="特征提取机制与输入契约">
-    输入图像统一调整至 $$224 \times 224$$ 分辨率并按照标准化参数（均值与方差）进行规范化。文本输入在分词后被截断或填充至固定序列长度（77 标记）。若在调用时启用了本指标却未提供 `--prompt` 参数，命令行解析层将立即阻断并退出，防止空提示词导致的无效运算。
-  </Accordion>
-
-  <Accordion title="学术文献与参考项目">
-    - 奠基论文：Hessel et al., 2021, *CLIPScore: A Reference-Free Evaluation Metric for Image Captioning* (arXiv:2104.08718)
-    - 骨干网络预训练：Radford et al., 2021, *Learning Transferable Visual Models From Natural Language Supervision*
-    - 上游开源基准库：`Taited/clip-score`
-  </Accordion>
-</Accordions>

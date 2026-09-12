@@ -1,0 +1,131 @@
+import os
+
+DOCS_DIR = "content/docs"
+
+# 1. pairwise/lpips.zh.mdx
+lpips_zh = """---
+title: LPIPS (深度感知距离)
+description: AlexNet 多尺度深层卷积特征加权感知差异
+---
+
+# LPIPS (深度感知距离)
+
+学习感知图像块相似度（Learned Perceptual Image Patch Similarity，简称 LPIPS）由 Richard Zhang 等人于 CVPR 2018 提出。该指标利用在 ImageNet 上预训练的深度卷积网络提取多尺度特征，并通过拟合真实人类感知差异判断的数据集学习特征层级加权，用于量化两幅图像之间的感知失真。
+
+---
+
+## 核心规格与指标特性
+
+| 参数维度 | 规范与技术事实 |
+| :--- | :--- |
+| **命令行参数** | `--metrics lpips` |
+| **输入约束** | 必须成对提供 `--image` 与 `--reference`（单图或目录同名配对） |
+| **输出形式** | 位于区间 $$[0.0, +\\infty)$$ 的无量纲浮点数 |
+| **数值导向** | **越低越优**（0.0 代表感知特征完全一致） |
+| **预训练骨干** | AlexNet 经典架构（v0.1 官方权重） |
+| **动态范围** | 输入张量内部归一化映射至 $$[-1.0, 1.0]$$ |
+| **学术出处** | Zhang et al., "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric", CVPR 2018 |
+
+---
+
+## 理论推导与数学形式
+
+LPIPS 将参考图像 $$x$$ 与待测图像 $$x_0$$ 输入预训练特征提取网络，提取 $$L$$ 个特征层的空间激活值。在每个网络层 $$l$$，先对通道维度进行 $$L_2$$ 范数单位化，随后乘以通道权重向量 $$w_l$$，最后在空间维度计算均方误差并跨层求和：
+
+```math
+d(x, x_0) = \\sum_l \\frac{1}{H_l W_l} \\sum_{h, w} \\left\\| w_l \\odot \\left( \\hat{y}^l_{hw} - \\hat{y}_{0, hw}^l \\right) \\right\\|_2^2
+```
+
+其中：
+- $$\\hat{y}^l, \\hat{y}_0^l$$ 表示第 $$l$$ 层的单位化特征图激活；
+- $$H_l, W_l$$ 分别为该层特征图的高度与宽度；
+- $$w_l$$ 为通过人类主观两两偏好数据训练学习得到的通道缩放权重向量。
+
+---
+
+## 空间尺寸强校验与输入契约
+
+- **禁止隐式插值**：两幅待对比图像在分辨率上必须完全一致（$$H_{\\text{ref}} = H_{\\text{gen}}$$ 且 $$W_{\\text{ref}} = W_{\\text{gen}}$$）。若存在尺寸差异，底层直接抛出异常拦截，绝不进行隐式双线性缩放以防产生虚假失真。
+- **色彩空间标准化**：输入图像自动转换为标准三通道张量，并由原始数值范围映射至归一化动态范围 $$[-1.0, 1.0]$$。
+- **严格主名文件匹配**：在目录评估模式下，严格根据忽略扩展名的大小写匹配机制对齐相同主名的文件；任何无法匹配的单边文件将导致整批报错。
+
+---
+
+## 调用范例 (CLI 与 Python API)
+
+<Steps>
+  <Step>
+    ### 单对图像感知评测
+
+    评估单幅生成图像与对应基准参考图的深度特征感知距离：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics lpips \\
+            --reference path/to/reference.png \\
+            --image path/to/generated.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.lpips_predictor import LPIPSPredictor
+
+        predictor = LPIPSPredictor()
+        distance = predictor.evaluate_lpips(
+            reference_path="path/to/reference.png",
+            generated_path="path/to/generated.png"
+        )
+        print(f"LPIPS Distance: {distance:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 目录批量逐对评测
+
+    对两个目录中同名文件执行逐对感知距离计算并返回算术均值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics lpips \\
+            --reference path/to/reference_folder/ \\
+            --image path/to/generated_folder/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.lpips_predictor import LPIPSPredictor
+
+        predictor = LPIPSPredictor()
+        mean_distance = predictor.evaluate_folder_lpips(
+            reference_folder="path/to/reference_folder/",
+            generated_folder="path/to/generated_folder/"
+        )
+        print(f"Directory Mean LPIPS: {mean_distance:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+---
+
+## 深入工程细节与诊断建议
+
+<Accordions>
+  <Accordion title="为什么感知距离在全局平移或色偏下表现稳健">
+    传统像素级指标（如峰值信噪比）对全局单色偏极其敏感，微小的整体亮度偏移即可导致数值腰斩。而 LPIPS 依赖深层卷积的感受野和特征不变性，能够有效容忍微小的亚像素平移与微弱的全局曝光偏差，聚焦衡量边缘结构崩溃、模糊涂抹及非自然伪影。
+  </Accordion>
+
+  <Accordion title="关于骨干网络选择的官方共识">
+    尽管 VGG 与 SqueezeNet 同样可作为特征提取器，但在官方基准评测中，AlexNet 架构在与人类主观感知一致性（BAPPS 数据集评测）上表现最为稳定均衡，且显存与内存消耗极低。本套件固定绑定官方推荐的 AlexNet 骨干。
+  </Accordion>
+</Accordions>
+"""
+
+with open(f"{DOCS_DIR}/pairwise/lpips.zh.mdx", "w", encoding="utf-8") as f:
+    f.write(lpips_zh.strip() + "\n")
+print("Written lpips.zh.mdx")

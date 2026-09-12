@@ -2,30 +2,20 @@
 > 生产级多维图像生成评测工具库，覆盖美学质量、语义对齐、主体保真、成对失真、分布差异与人类偏好 9 大核心评测指标。
 
 ## 文档索引
-- [概览与快速开始](/): 统一图像质量与多维对齐评估套件
-- [Aesthetic (单图美学评分)](/single-image/aesthetic): Aesthetic Predictor V2 - 零参考图视觉美学评分预测
-- [CLIP Score (图文语义对齐)](/single-image/clip): 多模态嵌入空间图文余弦相似度客观评测
-- [ArcFace (主体身份保真)](/single-image/arcface): 深度人脸特征空间余弦距离与身份一致性度量
-- [LPIPS (深度感知距离)](/pairwise/lpips): AlexNet 多尺度深层卷积特征加权感知差异
-- [SSIM (结构相似性)](/pairwise/ssim): 局部高斯滑动窗口亮度、对比度与结构三分量统计相似度
-- [PSNR (峰值信噪比)](/pairwise/psnr): 基于逐像素均方误差的底层物理级信号能量重构保真度
-- [FID (弗雷歇感知距离)](/distribution/fid): Inception-v3 特征空间高斯协方差二次型距离
-- [KID (核最大均值差异)](/distribution/kid): 三次多项式核无偏 U 统计量，专精小样本分布评估
-- [PickScore (真实偏好对齐)](/preference/pickscore): 基于真实人类成对偏好反馈微调的生成质量打分
-- [Visual Benchmark (多维评测演练)](/benchmark/visual-demo): 交互式多维指标看板与双图对比实测
+- [Overview & Quickstart](/): Production-grade multidimensional evaluation toolkit for AI image generation
+- [Aesthetic (Visual Quality Score)](/single-image/aesthetic): Aesthetic Predictor V2 - Zero-reference aesthetic evaluation with OpenCLIP ViT-L-14
+- [CLIP Score (Text-Image Alignment)](/single-image/clip): Objective cosine similarity in multimodal embedding space via clip-vit-base-patch32
+- [ArcFace (Subject Identity Fidelity)](/single-image/arcface): Face identity cosine distance evaluation via InsightFace buffalo_l 512-dimensional embeddings
+- [LPIPS (Perceptual Distance)](/pairwise/lpips): Learned Perceptual Image Patch Similarity using AlexNet multi-scale deep features
+- [SSIM (Structural Similarity)](/pairwise/ssim): Structural Similarity Index Measure via 11x11 Gaussian window decomposition
+- [PSNR (Peak Signal-to-Noise Ratio)](/pairwise/psnr): Pixel-level reconstruction fidelity computed from Mean Squared Error
+- [FID (Fréchet Inception Distance)](/distribution/fid): Generative distribution distance evaluated in Inception-v3 pool3 feature space
+- [KID (Kernel Inception Distance)](/distribution/kid): Polynomial kernel Maximum Mean Discrepancy unbiased U-statistic for small-sample evaluation
+- [PickScore (Human Preference Alignment)](/preference/pickscore): Fine-tuned CLIP ViT-H-14 scoring model trained on large-scale human choice data
+- [Visual Benchmark (Interactive Demo)](/benchmark/visual-demo): Interactive multi-metric dashboard and dual-image slider comparative inspection
 
 ## 核心指标矩阵
-| 评估维度 | 指标名称 | 核心机制与特征空间 | 取值方向 | 对应文档 |
-| :--- | :--- | :--- | :--- | :--- |
-| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [Aesthetic (单图美学)](/single-image/aesthetic) |
-| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [CLIP Score (图文对齐)](/single-image/clip) |
-| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [ArcFace (主体保真)](/single-image/arcface) |
-| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [LPIPS (感知距离)](/pairwise/lpips) |
-| **成对结构统计** | `ssim` | $$11 \times 11$$ 高斯局部加权结构相似度 | 数值越高越优 | [SSIM (结构相似)](/pairwise/ssim) |
-| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [PSNR (峰值信噪比)](/pairwise/psnr) |
-| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [FID (弗雷歇距离)](/distribution/fid) |
-| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [KID (核最大均值)](/distribution/kid) |
-| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [PickScore (偏好对齐)](/preference/pickscore) |
+
 
 ## 命令行使用范例
 ```bash

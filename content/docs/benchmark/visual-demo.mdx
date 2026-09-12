@@ -1,116 +1,22 @@
 ---
-title: Visual Benchmark (多维评测演练)
-description: 交互式多维指标看板与双图对比实测
+title: Visual Benchmark (Interactive Demo)
+description: Interactive multi-metric dashboard and dual-image slider comparative inspection
 ---
 
-# 视觉用例评测演练
+# Visual Benchmark (Interactive Demo)
 
-本演练中心通过真实算法生成的代表性图像样本，提供可交互的双图拖拽滑块与并排比对能力，将抽象的多维评估分值转化为直观的视觉差异。通过深入剖析不同失真场景下的指标反馈，揭示多尺度、多模态评估体系的互补机制与工程约束。
+This interactive evaluation benchmark demonstrates how different metric layers respond across three representative generative scenarios: **severe perceptual distortion**, **global warm color tint shift**, and **high-resolution portrait localized editing**. Use the slider or side-by-side view to visually inspect localized differences and compare metric scores.
 
 ---
 
-## 交互式多维指标看板
-
-以下交互看板汇集了三个典型评测场景：**局部结构位移与严重感知失真**、**全局暖色温色偏与学术互补实证**以及**真实高清人脸局部微调多模态全景评测**。您可以通过滑块拖拽或切换并排视图，直观探查图像局部差异与指标得分。
+## Interactive Metric Showcase
 
 <MetricVisualShowcase />
 
 ---
 
-## 多尺度成对保真度评估体系
+## Architectural Complementarity
 
-在生成式模型与图像编辑任务中，评估生成图像与基准参考图之间的保真度具有极高的学术与工程复杂度。单一维度的指标无法全面衡量人类主观感知的退化程度，必须构筑跨越微观像素、中观局部结构与宏观深度感知的多尺度评价矩阵。
-
-### 深度特征感知与语义拓扑
-
-基于深度卷积神经网络（如骨干网络架构）提取的多层级特征映射，能够模拟人类视觉皮层的深层响应。感知特征距离对微小的亚像素平移与全局均匀色阶漂移具备良好的稳健度，但在轮廓结构形变、高频伪影与语义异常时会产生极大的距离响应。
-
-### 局部结构统计与滑动窗口
-
-结构相似性度量通过高斯加权滑动窗口（标准尺寸 $$11 \times 11$$），将局部图像块解耦为亮度均值、对比度方差以及结构协方差三个独立分量。该指标针对边缘模糊与几何轮廓破坏具备极高的敏感度。
-
-### 逐像素能量重构与信噪比
-
-峰值信噪比基于逐点均方误差计算信号能量与噪声功率的比值。作为经典数字图像处理的底线基准，它量化了绝对物理数值的重构精度。计算公式如下：
-
-```math
-\text{PSNR} = 10 \cdot \log_{10}\left(\frac{\text{MAX}^2}{\text{MSE}}\right)
-
-```
-
----
-
-## 指标互补性机理与判决权衡
-
-### 全局色偏扰动下的经典指标失效
-
-如上方用例二所示，当图像受到大面积全局色偏干扰（如画面整体色温偏暖）时，传统底层指标容易产生严重的误判：
-
-- 像素级信噪比因为每一个像素的色彩通道数值发生偏移，导致均方误差大幅上升，指标断崖式下跌至 13.87 分贝。
-- 结构相似度由于滑动窗口内的局部均值与对比度统计量受色温漂移扰动，产生仅有 0.2959 的极低分值（假阳性严重退化）。
-- 与之相对，基于深度特征的感知距离指标准确识别出图像中的几何轮廓、物体拓扑与语义内容完全完好，录得 0.1376 的高保真得分。
-
-此用例充分印证了在涉及复杂光照与色彩渲染的生成任务中，结合深度感知指标的绝对必要性。
-
-### 局部高频形变下的三维一致警报
-
-如上方用例一所示，当画面发生局部边缘撕裂、几何拓扑破坏与纹理扭曲时，底层像素重构（18.05 分贝）、中层结构统计（0.4368）与高层深度特征感知（0.7219）同时亮起严重失真警报。这种跨尺度的三维一致判决，为流水线自动化拦截缺陷生成样本提供了铁证。
-
-### 高清人脸编辑的多模态综合校验
-
-在用例三的高清人脸局部编辑（例如增加眼镜）场景中，评估维度进一步扩展至面部生物特征身份与图文语义对齐：
-
-- **身份保真约束**：利用人脸特征提取模型抽取 512 维特征向量，比对编辑前后的余弦距离（本例为 0.4481，显著低于同一人判定阈值 0.68），确认未发生身份漂移。
-- **指令遵从验证**：通过跨模态对齐网络验证生成图像与文本指令的吻合程度（分值 0.2353）。
-- **非编辑区完好性**：成对指标全面确认面部未修改区域及背景结构高度重合（相似度 0.9172，感知距离 0.0901）。
-
----
-
-## 空间几何对齐与快速失败机制
-
-成对保真度指标对图像的空间几何对齐具有极高的确定性要求。本评测套件在底层严格遵循快速失败原则，杜绝由于不可见预处理引发的评估偏差。
-
-### 隐式插值禁止原则
-
-当输入的参考图像与待测生成图像在空间尺寸上存在任何不一致（即宽或高不满足 $$H_{\text{ref}} = H_{\text{gen}}$$ 且 $$W_{\text{ref}} = W_{\text{gen}}$$）时，系统将立即抛出异常并终止运行：
-
-- 严禁在底层悄悄执行双线性或最近邻插值缩放，因为任何插值算法都会引入高频平滑或振铃伪影，从而污染深度感知特征。
-- 用户必须显式决定重采样策略与对齐基准。
-
-### 严格维度匹配约束
-
-除成对样本尺寸一致外，结构相似度算法依赖 $$11 \times 11$$ 的高斯滑动窗口。若输入图像的分辨率低于 11 像素，计算层将直接拦截，防止出现退化异常。
-
----
-
-## 本地命令行复现与实战指南
-
-本演练文档中所展示的所有实测指标均可通过命令行评测工具完全复现。
-
-### 基础成对指标复现
-
-在包含样本图像的目录下，执行以下命令即可一键获取深度特征、结构相似度与峰值信噪比：
-
-```bash
-image-evaluator --metrics lpips ssim psnr --reference reference/case_01.png --image generated/case_01.png
-
-```
-
-### 全量多模态指标评估
-
-针对包含文本提示词引导的人像编辑任务，可组合加载美学预测器、跨模态对齐与人脸生物特征模块：
-
-```bash
-image-evaluator --metrics aesthetic clip arcface lpips ssim psnr --reference reference/case_03.png --image generated/case_03.png --prompt "give the man glasses"
-
-```
-
-### 跨尺度预处理对齐规范
-
-若待评估的生成模型输出分辨率与基准图不一致（例如 512 像素对比 1024 像素），推荐在评测前使用高质量防混叠滤波算法完成尺寸归一化，确保空间对齐与评测结论的数学严谨性。
-
-```bash
-python -c "from PIL import Image; img = Image.open('input.png'); img.resize((1024, 1024), Image.Resampling.LANCZOS).save('aligned.png')"
-
-```
-
+1. **LPIPS (Perceptual Deep Feature Layer)**: Highly robust against global uniform tint or minor sub-pixel shifts, but fires an alarm upon textural destruction or geometric contour tears.
+2. **SSIM (Structural Statistical Layer)**: Evaluates local covariance across an $11 \times 11$ window. Highly sensitive to contour blurs and edge artifacts.
+3. **PSNR (Physical Pixel Layer)**: Evaluates absolute mean squared error on pixel intensity. Highly sensitive to subtle global luminance shifts.

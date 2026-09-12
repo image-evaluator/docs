@@ -1,0 +1,96 @@
+---
+title: ArcFace (主体身份保真)
+description: 深度人脸特征空间余弦距离与身份一致性度量
+---
+
+# ArcFace (主体身份保真)
+
+ArcFace 专注于衡量人像个性化定制（Personalization）、LoRA 角色重绘以及人脸替换（Face-Swap）算法中的主体生物特征一致性。该指标基于成熟的人脸深度表征框架 InsightFace `buffalo_l`，提取两幅图像中目标人脸的 512 维深度嵌入特征向量，并计算其余弦距离。
+
+---
+
+## 核心规格与指标特性
+
+| 参数维度 | 规范与技术事实 |
+| :--- | :--- |
+| **命令行参数** | `--metrics arcface` |
+| **输入约束** | 必须成对提供包含清晰人脸的 `--image` 与 `--reference` |
+| **输出形式** | 位于区间 $$[0.0, 2.0]$$ 的无量纲余弦距离浮点数 |
+| **数值导向** | **越低越优**（数值越小代表身份越吻合；0.0 代表人脸特征完全一致） |
+| **预训练骨干** | InsightFace `buffalo_l`（ResNet-50 主干网络，ArcFace 角度边界损失） |
+| **同人判定阈值** | 通常建议取 **0.40 - 0.50** 为同人判决线；大于 0.60 判定为身份漂移 |
+
+---
+
+## 数学原理与计算公式
+
+设待测图与参考图检测出的人脸 512 维特征向量分别为 $\mathbf{f}_1$ 与 $\mathbf{f}_2$：
+
+```math
+\text{Distance}(\mathbf{f}_1, \mathbf{f}_2) = 1 - \frac{\mathbf{f}_1 \cdot \mathbf{f}_2}{\|\mathbf{f}_1\|_2 \|\mathbf{f}_2\|_2}
+```
+
+若画面中存在多人脸，检测器依据人脸检测置信度与边界框面积自动选择主面孔执行特征抽取与对齐。
+
+---
+
+## 调用范例 (CLI 与 Python API)
+
+<Steps>
+  <Step>
+    ### 单对人脸身份保真度校验
+
+    比对编辑或生成的人脸是否与基准原图为同一人：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics arcface \
+            --reference real_face.png \
+            --image generated_face.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+        predictor = ArcFaceDistPredictor()
+        distance = predictor.evaluate_arcface_distance(
+            reference_path="real_face.png",
+            generated_path="generated_face.png"
+        )
+        print(f"ArcFace 余弦距离: {distance:.4f}")
+        print("判决结果: " + ("高度一致 (同人)" if distance < 0.45 else "身份发生漂移"))
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 图库批量人像配对校验
+
+    对两个目录中同名文件逐对提取人脸并计算平均距离：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics arcface \
+            --reference path/to/real_faces/ \
+            --image path/to/generated_faces/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
+
+        predictor = ArcFaceDistPredictor()
+        mean_dist = predictor.evaluate_folder_arcface_distance(
+            reference_folder="path/to/real_faces/",
+            generated_folder="path/to/generated_faces/"
+        )
+        print(f"批处理平均 ArcFace 距离: {mean_dist:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

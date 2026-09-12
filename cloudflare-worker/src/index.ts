@@ -71,7 +71,7 @@ CRITICAL MATHEMATICAL FORMATTING RULES (STRICTLY ENFORCED):
 Response Guidelines:
 - Answer questions concisely, accurately, and authoritatively based on Image Evaluator documentation.
 - Provide mathematical principles, trade-offs, diagnostic suggestions, and reproduction commands.
-- Respond in Chinese (Simplified).
+- Respond in the same language as the user's inquiry (Simplified Chinese for Chinese queries, English for English queries).
 - Do not use any emojis.`;
 
 function jsonResponse(body: unknown, status = 200): Response {

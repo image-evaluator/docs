@@ -3,1218 +3,898 @@
 
 ---
 
-# 概览与快速开始
+# Overview & Quickstart
 
-> 统一图像质量与多维对齐评估套件
+> Production-grade multidimensional evaluation toolkit for AI image generation
 
-`image-evaluator` 是一套面向生成式人工智能研究员与工程实践者的轻量级统一评估套件。该工具在统一的接口规范下，系统性覆盖了生成图像质量的九大核心评估维度：单图视觉美学质量预测、文本图像跨模态语义对齐、主体人脸身份保真度、成对图像保真度三元组（深度感知特征距离、结构统计相似度、峰值信噪比）、数据集分布保真度（双特征空间弗雷歇距离与核感知距离）以及人类主观偏好对齐评分。
+`image-evaluator` is a production-grade, lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
 
 ---
 
-## 评估维度与指标矩阵
+## Metric Architecture Matrix
 
-本套件根据评估目标和输入数据的层级，将九项核心指标划分为四大体系：
+The toolkit structures its nine core metrics across four functional dimensions:
 
-| 评估维度 | 指标名称 | 核心机制与特征空间 | 取值方向 | 对应文档 |
+| Dimension | Metric | Backbone & Feature Space | Direction | Documentation |
 | :--- | :--- | :--- | :--- | :--- |
-| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [Aesthetic (单图美学)](/single-image/aesthetic) |
-| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [CLIP Score (图文对齐)](/single-image/clip) |
-| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [ArcFace (主体保真)](/single-image/arcface) |
-| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [LPIPS (感知距离)](/pairwise/lpips) |
-| **成对结构统计** | `ssim` | $$11 \times 11$$ 高斯局部加权结构相似度 | 数值越高越优 | [SSIM (结构相似)](/pairwise/ssim) |
-| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [PSNR (峰值信噪比)](/pairwise/psnr) |
-| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [FID (弗雷歇距离)](/distribution/fid) |
-| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [KID (核最大均值)](/distribution/kid) |
-| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [PickScore (偏好对齐)](/preference/pickscore) |
+| **Perceptual Quality** | `aesthetic` | OpenCLIP `ViT-L-14` + linear regression head | Higher is better | [Aesthetic Score](/single-image/aesthetic) |
+| **Text-Image Alignment** | `clip` | CLIP `clip-vit-base-patch32` cosine similarity | Higher is better | [CLIP Score](/single-image/clip) |
+| **Identity Fidelity** | `arcface` | InsightFace `buffalo_l` 512-dim cosine distance | Lower is better | [ArcFace Distance](/single-image/arcface) |
+| **Perceptual Distance** | `lpips` | AlexNet multi-scale deep activation features | Lower is better | [LPIPS Distance](/pairwise/lpips) |
+| **Structural Statistics** | `ssim` | $11 \times 11$ Gaussian sliding window covariance | Higher is better | [SSIM Similarity](/pairwise/ssim) |
+| **Pixel Reconstruction** | `psnr` | Pixel-wise Mean Squared Error logarithmic ratio | Higher is better | [PSNR Ratio](/pairwise/psnr) |
+| **Distribution Distance** | `fid` | Inception-v3 pool3 Gaussian quadratic distance | Lower is better | [FID Score](/distribution/fid) |
+| **Kernel MMD U-Statistic** | `kid` | Polynomial kernel maximum mean discrepancy | Lower is better | [KID Score](/distribution/kid) |
+| **Human Preference** | `pickscore` | Fine-tuned CLIP ViT-H-14 on Pick-a-Pic data | Higher is better | [PickScore](/preference/pickscore) |
 
 ---
 
-## 指标选型速查
-
-在开展生成模型评测实验时，建议根据评测任务目标选用针对性指标组合：
-
-- **文生图模型基础评测**：推荐联合使用 `aesthetic`（单图画面美感）、`clip`（提示词文本遵从度）以及 `pickscore`（真实人类综合偏好）。
-- **个性化定制与换脸算法**：必须选用 `arcface` 评测主体身份一致性，并结合 `clip` 验证上下文生成能力。
-- **图像超分辨率与去噪修复**：推荐采用成对保真度三元组 `lpips`、`ssim` 与 `psnr` 进行多层级重构精度评估。
-- **生成对抗网络与扩散模型分布评估**：针对整批数据集评估，必须使用 `fid` 与 `kid` 度量生成分布与真实分布之间的统计距离。
+## Core Capability Highlights
 
 ---
 
-## 快速开始
+## Quickstart
 
-安装运行环境。
+### Environment Installation
 
-推荐在 Python 3.11 至 3.14 环境下安装发布版本：
+Install `image-evaluator` in your Python 3.11+ environment:
 
 ```bash
-python -m pip install image-evaluator==0.2.0
+pip install image-evaluator
 
 ```
 
-单图视觉美学评分。
+### Single-Image Aesthetic Evaluation
 
-计算单个图像文件或文件夹内所有图像的平均美学评分：
+Score standalone visual appeal using LAION aesthetic predictor:
 
-```bash
-image-evaluator --metrics aesthetic --image path/to/sample.png
+    ```bash
+    image-evaluator --metrics aesthetic --image path/to/sample.png
 
-```
+    ```
 
-图文对齐与人类偏好评分。
+    ```python
+    from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
 
-对单张生成图同时评估提示词语义遵从度与人类偏好打分：
+    predictor = LaionAiAestheticPredictor()
+    score = predictor.evaluate_aesthetic_score("path/to/sample.png")
+    print(f"Aesthetic Score: {score:.4f}")
 
-```bash
-image-evaluator --metrics clip pickscore \
-    --image path/to/sample.png \
-    --prompt "a photograph of an astronaut riding a horse on mars"
+    ```
 
-```
+### Text-Image Alignment & Preference Scoring
 
-成对图像保真度三元组评估。
+Verify text prompt alignment and subjective human preference simultaneously:
 
-计算生成图相对参考原图的多尺度感知与结构重构指标：
+    ```bash
+    image-evaluator --metrics clip pickscore \
+        --image path/to/sample.png \
+        --prompt "an astronaut riding a horse on mars"
 
-```bash
-image-evaluator --metrics lpips ssim psnr \
-    --image path/to/generated.png \
-    --reference path/to/reference.png
+    ```
 
-```
+    ```python
+    from image_evaluator.clip_score_predictor import ClipScorePredictor
+    from image_evaluator.pickscore_predictor import PickScorePredictor
 
-数据集分布距离评测。
+    clip_pred = ClipScorePredictor()
+    pick_pred = PickScorePredictor()
 
-评估生成图像目录与真实数据集目录之间的特征分布距离：
+    prompt = "an astronaut riding a horse on mars"
+    clip_val = clip_pred.evaluate_clip_score("path/to/sample.png", prompt=prompt)
+    pick_val = pick_pred.evaluate_pickscore("path/to/sample.png", prompt=prompt)
 
-```bash
-image-evaluator --metrics fid kid \
-    --image path/to/generated_folder/ \
-    --reference path/to/real_folder/
+    print(f"CLIP Score: {clip_val:.4f}, PickScore: {pick_val:.4f}")
 
-```
+    ```
+
+### Pairwise Fidelity Triad Evaluation
+
+Quantify perceptual, structural, and numerical differences against a reference ground truth:
+
+    ```bash
+    image-evaluator --metrics lpips ssim psnr \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
+
+    ```
+
+    ```python
+    from image_evaluator.lpips_predictor import LPIPSPredictor
+    from image_evaluator.ssim_predictor import SSIMPredictor
+    from image_evaluator.psnr_predictor import PSNRPredictor
+
+    lpips_p = LPIPSPredictor()
+    ssim_p = SSIMPredictor()
+    psnr_p = PSNRPredictor()
+
+    ref, gen = "path/to/reference.png", "path/to/generated.png"
+    print(f"LPIPS: {lpips_p.evaluate_lpips(ref, gen):.4f}")
+    print(f"SSIM:  {ssim_p.evaluate_ssim(ref, gen):.4f}")
+    print(f"PSNR:  {psnr_p.evaluate_psnr(ref, gen):.2f} dB")
+
+    ```
+
+### Generative Dataset Distribution Distances
+
+Compare feature distribution shifts between generated and ground-truth directories:
+
+    ```bash
+    image-evaluator --metrics fid kid \
+        --reference path/to/real_folder/ \
+        --image path/to/generated_folder/
+
+    ```
+
+    ```python
+    from image_evaluator.fid_predictor import FIDPredictor
+    from image_evaluator.kid_predictor import KIDPredictor
+
+    fid_p = FIDPredictor()
+    kid_p = KIDPredictor()
+
+    real_dir, gen_dir = "path/to/real_folder/", "path/to/generated_folder/"
+    print(f"FID: {fid_p.evaluate_fid(real_dir, gen_dir):.4f}")
+
+    mean_kid, std_kid = kid_p.evaluate_kid(real_dir, gen_dir)
+    print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
+
+    ```
 
 ---
 
-## 评测准则与解读指南
+## Architectural Principles
 
-为保障科学实验与学术对比的严谨性，使用本工具时请严格遵循以下准则：
+### Lazy Loading & Zero Memory Leakage
 
-- **统一评测协议与主干网络**：绝对禁止跨越不同模型权重版本或预处理流程直接比较分值。
-- **控制变量相对比较**：除数学定义严格的指标外，多数深度指标不存在绝对分界阈值，应始终设立基线对照组进行相对比较。
-- **空间尺寸强校验原则**：成对保真度指标（`lpips`、`ssim`、`psnr`）严格拒绝尺寸不一致的输入，杜绝运行时隐式插值引入失真。
-- **严格目录输入约束**：分布级指标（`fid`、`kid`）强制要求双方输入均为已存在目录，且样本量需满足统计可信度要求。
+The engine initializes only the models explicitly declared in `--metrics`. Weight caches and intermediate tensors are strictly scoped. Unselected heavy models (such as InsightFace or PickScore ViT-H-14) remain completely unloaded, preserving host RAM and GPU VRAM during long-running pipelines.
 
----
+### Strict Spatial Alignment & Fail-Fast Safety
 
-## 架构设计与高级选项
+Pairwise metrics enforce an absolute dimension check ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The library strictly rejects silent interpolation or resizing, guaranteeing that resolution scaling artifacts never contaminate deep perceptual measurements.
 
-### 延迟加载架构与内存优化机制
+### Hardware Acceleration & Cross-Platform Support
 
-本套件采用按需初始化设计，仅加载命令行 `--metrics` 中显式声明的计算模型与权重。未选用的重量级模型（例如近 10 亿参数的 PickScore 或人脸识别 InsightFace）在运行期间零初始化、零内存占用，有效防止长周期批量任务中的显存泄漏。
-
-### 平台兼容性与硬件加速支持
-
-本工具原生支持 macOS（Apple Silicon 金属加速及 CPU）、Linux（x86_64 及 aarch64）平台。在具备 CUDA 驱动的 Linux 服务器上，通过配置对应后端即可实现多卡并行或单卡高吞吐极速批处理。
-
-### 无偏估计与样本量敏感度说明
-
-弗雷歇距离在小样本情境下存在系统性正向偏差，样本量低于 2048 时会触发警告。核感知距离作为无偏统计量，在真实分布完全重合时可能因样本方差产生微小负值，这是保持数学无偏性的正常统计现象，系统不会人为截断。
+Native support across Linux (CUDA acceleration, CPU fallback) and macOS (Apple Silicon Metal MPS, CPU). Automatic device resolution dynamically optimizes batch throughput without manual torch device configuration.
 
 ---
 
-# Aesthetic (单图美学评分)
+# Aesthetic (Visual Quality Score)
 
-> Aesthetic Predictor V2 - 零参考图视觉美学评分预测
+> Aesthetic Predictor V2 - Zero-reference aesthetic evaluation with OpenCLIP ViT-L-14
 
-# 单图美学质量
-
-单图美学质量指标用于量化评估单张图像在人类视觉审美层面的综合质感与构图水平。该指标通过大规模人类审美评分数据集训练线性回归头，赋予模型对生成图像细节质感、色彩和谐度与整体构图美感的感知能力。
+LAION AI Aesthetic Score estimates perceived visual quality using an OpenCLIP `ViT-L-14` backbone coupled with a linear regression head trained on human ratings from aesthetic datasets (such as SAC and AVA). It is widely utilized for automated image filtering, curated gallery ranking, and analyzing prompt engineering quality.
 
 ---
 
-## 技术规格与基本参数
+## Technical Specifications
 
-| 参数维度 | 详细规格说明 |
+| Parameter | Specification |
 | :--- | :--- |
-| **所属分类** | 感知视觉质量（无参考评估） |
-| **命令行标识** | `aesthetic` |
-| **输入约束** | `--image`（支持单个图像文件或包含图像的目录路径） |
-| **输出形式** | 连续标量浮点数（通常分布于 1.0 至 10.0 区间） |
-| **数值导向** | **数值越高越优**（更高分值代表更贴近高质量审美偏好） |
-| **主干网络** | OpenCLIP `ViT-L-14`（采用 `openai` 预训练权重，强制启用 `force_quick_gelu=True`） |
-| **回归权重** | `sa_0_4_vit_l_14_linear.pth` |
-| **参考开源项目** | `LAION-AI/aesthetic-predictor` |
+| **CLI Argument** | `--metrics aesthetic` |
+| **Input Constraint** | `--image` (single image file or directory) |
+| **Output Type** | Continuous scalar float (typical range `[1.0, 10.0]`) |
+| **Direction** | **Higher is better** |
+| **Backbone Architecture** | OpenCLIP `ViT-L-14` (`openai` weights, `force_quick_gelu=True`) + linear regression head |
+| **Source Implementation** | [LAION-AI/aesthetic-predictor](https://github.com/LAION-AI/aesthetic-predictor) (`sa_0_4_vit_l_14_linear.pth`) |
 
 ---
 
-## 理论背景与作用机制
+## Formulation & Architectural Alignment
 
-单图美学评分基于预训练视觉语言模型的深层表征空间。首先利用在大规模图文对上对比学习预训练的视觉变换器提取图像的多尺度特征，并完成 $$L_2$$ 范数归一化。随后将归一化后的视觉嵌入向量投影至专用的线性回归打分层，输出对图像审美水平的连续标量预测值。
-
-该指标在生成式任务中承担多重关键角色：
-- **生成结果质量初筛**：自动过滤结构崩塌、色彩杂乱或视觉构图明显劣化的问题生成样本。
-- **提示词工程风格微调**：定量对比不同风格修饰词（如艺术媒介、布光方式、渲染引擎说明）对输出画质的增益效果。
-- **模型微调数据清洗**：在微调下游扩散模型前，对训练集进行审美阈值截断以剔除低质训练图像。
-
----
-
-## 结果解读与评估准则
-
-- **无绝对裁决阈值**：禁止使用固定的绝对截断分值（如一律认为大于 6.0 即为优质）来判定图像优劣。
-- **严格控制变量对比**：仅可在完全相同的主干模型结构与预处理输入管道下，对比不同生成模型或采样步数的相对分值高低。
-- **与语义指标互补使用**：单图美学高分仅代表视觉构图与色彩质感良好，不代表画面符合文本提示词约束或不存在解剖结构错误。
-
----
-
-## 命令行调用指南
-
-单图评估。
-
-对单张生成图片进行美学评分：
-
-```bash
-image-evaluator --metrics aesthetic --image path/to/sample.png
-
-```
-
-目录批量评估。
-
-对文件夹内的所有图片进行批处理，输出全目录算术平均分：
-
-```bash
-image-evaluator --metrics aesthetic --image path/to/image_folder/
-
-```
-
----
-
-## 适用范围与局限说明
-
-- **语义无关性**：美学评分无法检验图像是否忠实表达了文本提示词的要求。
-- **生物结构盲区**：无法有效检测肢体结构扭曲、手部指节畸变或面部五官不对称等生成式常见缺陷。
-- **数据风格偏好偏差**：评分结果受制于原始审美训练集（如人类主观评分数据集）的主观偏好分布，可能对特定小众艺术流派或极简风格存在系统性偏差。
-
----
-
-## 深入学术细节与实现规范
-
-### 激活函数与分值漂移分析
-
-本套件在实例化视觉变换器模型时显式传入 `force_quick_gelu=True`：
-
-1. **对齐上游权重与历史实现**：设置 `force_quick_gelu=True` 严格对齐了官方预训练权重及其追溯的历史参考实现。早期版本直接执行对应的快速高斯误差线性单元，而在后续版本中默认回退至标准高斯误差线性单元，这会导致上游权重不匹配警告。强制开启后完全消除了该项警告。
-2. **分值数值漂移**：从标准激活函数切换为对齐的快速激活函数会微调提取出的图像特征向量，在基准测试样本上观察到单图预测分值存在约 -0.20 至 +0.04 的微小漂移。
-3. **可复现性规范**：此项对齐旨在保障模型架构与底层权重严格自洽，消除运行警告，并不代表模型预测精度的绝对升降。
-
-### 算法实现与特征提取细节
-
-预测器读取图像并转换为三通道标准色彩格式后，由视觉变换器提取 768 维深度表征向量并完成单位范数化：
+The predictor extracts a 768-dimensional normalized visual embedding $\mathbf{z} \in \mathbb{R}^{768}$ from the input image $I$, then applies a learned linear projection:
 
 ```math
-v_{\text{norm}} = \frac{v}{\|v\|_2}
+\text{Score}(I) = \mathbf{w}^T \left( \frac{\Phi(I)}{\|\Phi(I)\|_2} \right) + b
 
 ```
 
-随后计算线性映射打分：
+### QuickGELU Activation Alignment
 
-```math
-\text{Score} = w^T v_{\text{norm}} + b
-
-```
-
-当输入目标为目录时，扫描所有有效图像格式并计算未加权算术平均数：
-
-```math
-\mu = \frac{1}{N} \sum_{i=1}^N \text{Score}_i
-
-```
-
-### 学术文献与参考源
-
-- 代码参考库：`LAION-AI/aesthetic-predictor`
-- 预训练权重：`sa_0_4_vit_l_14_linear.pth`
-- 训练数据集基础：包含人类主观审美标注与美学摄影基准评测数据
+The predictor explicitly instantiates OpenCLIP with `force_quick_gelu=True`. This preserves exact consistency with the official OpenAI pre-trained weights and the historical reference implementation (`open_clip==1.3.0`). While modern `open_clip` releases defaulted to standard PyTorch `nn.GELU()`, triggering weight mismatch warnings, our explicit activation alignment eliminates warnings and guarantees deterministic embedding reproducibility.
 
 ---
 
-# CLIP Score (图文语义对齐)
+## Usage Examples
 
-> 多模态嵌入空间图文余弦相似度客观评测
+### Single Image Evaluation
 
-# 图文语义匹配
+Compute the aesthetic score for a single generated image:
 
-图文语义匹配指标用于评估生成图像与输入文本描述（提示词）之间的多模态语义一致性。该指标借助大规模图文对比学习所构建的共享嵌入空间，分别将图像与文本映射为高维特征向量，通过余弦相似度定量表征文本意图在画面中的还原程度。
+    ```bash
+    image-evaluator --metrics aesthetic --image sample.png
+
+    ```
+
+    ```python
+    from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
+
+    predictor = LaionAiAestheticPredictor()
+    score = predictor.evaluate_aesthetic_score("sample.png")
+    print(f"Aesthetic Score: {score:.4f}")
+
+    ```
+
+### Directory Batch Evaluation
+
+Compute the arithmetic mean aesthetic score across an entire image directory:
+
+    ```bash
+    image-evaluator --metrics aesthetic --image path/to/images_dir/
+
+    ```
+
+    ```python
+    from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
+
+    predictor = LaionAiAestheticPredictor()
+    mean_score = predictor.evaluate_folder_aesthetic_score("path/to/images_dir/")
+    print(f"Mean Aesthetic Score: {mean_score:.4f}")
+
+    ```
 
 ---
 
-## 技术规格与基本参数
+# CLIP Score (Text-Image Alignment)
 
-| 参数维度 | 详细规格说明 |
+> Objective cosine similarity in multimodal embedding space via clip-vit-base-patch32
+
+CLIP Score measures the semantic alignment between a generated image and its guiding text prompt. It evaluates whether the visual concepts described in the prompt are faithfully manifested in the synthesized output by projecting both modalities into a shared normalized embedding space.
+
+---
+
+## Technical Specifications
+
+| Parameter | Specification |
 | :--- | :--- |
-| **所属分类** | 视觉语言多模态语义对齐 |
-| **命令行标识** | `clip` |
-| **输入约束** | `--image`（单个图像文件或图像目录）与 `--prompt`（文本字符串、提示词文本文件或提示词目录）必须同时提供 |
-| **输出形式** | 位于区间 $$[-1.0, 1.0]$$ 的连续标量浮点数 |
-| **数值导向** | **数值越高越优**（更高分值表示生成画面与文本提示词语义越吻合） |
-| **主干网络** | 官方预训练模型 `openai/clip-vit-base-patch32` |
-| **底层实现依赖** | 依托 Hugging Face 变换器与 PyTorch 张量运算 |
-| **学术出处** | Hessel et al., CVPR 2021 / 经典对比语言图像预训练架构 |
+| **CLI Argument** | `--metrics clip` |
+| **Input Constraint** | `--image` (file/directory) and `--prompt` (text or prompt file) |
+| **Output Type** | Continuous float in `[0.0, 100.0]` |
+| **Direction** | **Higher is better** |
+| **Backbone Architecture** | OpenAI `clip-vit-base-patch32` |
+| **Formula Reference** | Hessel et al., "CLIPScore: A Reference-free Evaluation Metric for Image Captioning", EMNLP 2021 |
 
 ---
 
-## 理论背景与计算公式
+## Formulation
 
-给定输入的图像像素张量 $$x_{\text{img}}$$ 与文本描述序列 $$x_{\text{txt}}$$，分别通过图像编码器与文本编码器提取高维隐空间特征向量：
+Let $\mathbf{e}_I = \frac{\Phi_{\text{visual}}(I)}{\|\Phi_{\text{visual}}(I)\|_2}$ and $\mathbf{e}_T = \frac{\Phi_{\text{text}}(T)}{\|\Phi_{\text{text}}(T)\|_2}$ be the $L_2$-normalized visual and text embeddings:
 
 ```math
-v_{\text{img}} = \text{ImageEncoder}(x_{\text{img}}), \quad v_{\text{txt}} = \text{TextEncoder}(x_{\text{txt}})
-
-```
-
-随后执行严格的 $$L_2$$ 范数归一化，通过内积计算原始余弦相似度：
-
-```math
-S_{\text{CLIP}}(v_{\text{img}}, v_{\text{txt}}) = \frac{v_{\text{img}}}{\|v_{\text{img}}\|_2} \cdot \frac{v_{\text{txt}}}{\|v_{\text{txt}}\|_2}
-
-```
-
-该指标输出值域处于 $$[-1.0, 1.0]$$ 之间。在实际生成式任务评估中，合理匹配的图文对打分通常集中于 0.20 至 0.35 的典型数值区间。
-
----
-
-## 适用场景与任务边界
-
-### 文本生成图像提示词遵从度
-
-本指标专门针对标准文本生成图像（文生图）任务设计，用于验证生成模型是否正确遵循了提示词中的核心实体、属性修饰与宏观场景描述。例如对提示词 `"a golden retriever running across a sunny lawn"` 的生成效果进行基准定量打分。
-
-### 图像编辑场景适用性剖析
-
-该指标**不适合单独作为图像局部编辑或重绘任务的充分评估指标**：
-- **无法度量原图结构保留**：仅针对编辑指令（如 `"make it oil painting"`）计算图文匹配度，无法验证未经编辑的背景或主体结构是否发生非预期畸变。
-- **需多维联合约束**：针对图像编辑评测，必须结合成对保真度指标（如深度感知距离、结构相似度）以及主体保真度指标进行联合评估。
-- **纯图像比对不可用**：当前命令行实现严格聚焦于图文匹配，不支持图像对图像的直接表征比对。
-
----
-
-## 结果解读与评测准则
-
-- **无跨域通用阈值**：绝对得分随提示词长度、词汇抽象度与概念复杂度剧烈波动，不可跨越不同文本描述横向对比绝对分值。
-- **严格控制实验基线**：评测不同生成模型时，必须固定完全一致的测试提示词集合与主干网络权重，基于相对分值增益得出结论。
-- **防范指标过拟合**：部分模型可能通过强化高频显式物体堆叠提升该指标，但牺牲了画面构图的美感与真实感，需结合审美评分与人类偏好评分联合研判。
-
----
-
-## 命令行调用指南
-
-单图图文匹配。
-
-对单张生成图与对应文本提示词进行余弦相似度打分：
-
-```bash
-image-evaluator --metrics clip \
-    --image path/to/sample.png \
-    --prompt "a cinematic photograph of an old library"
-
-```
-
-目录批量评测。
-
-批量评估生成图像目录下所有样本针对指定提示词的平均匹配水平：
-
-```bash
-image-evaluator --metrics clip \
-    --image path/to/image_folder/ \
-    --prompt "a cinematic photograph of an old library"
+\text{CLIP-Score}(I, T) = \max(100 \cdot \cos(\mathbf{e}_I, \mathbf{e}_T), 0) = \max(100 \cdot (\mathbf{e}_I \cdot \mathbf{e}_T), 0)
 
 ```
 
 ---
 
-## 深入学术细节与协议区别
+## Usage Examples
 
-### 论文定义与仓库实现的差异
+### Single Image Alignment
 
-在学术文献（Hessel et al., 2021）的初始定义中，评估分值被形式化为：
+Evaluate how closely an image follows a given text prompt:
 
-```math
-\text{CLIPScore} = 2.5 \cdot \max(\cos(e_I, e_T), 0)
+    ```bash
+    image-evaluator --metrics clip \
+        --image sample.png \
+        --prompt "an astronaut riding a horse on mars"
 
-```
+    ```
 
-论文实现引入了 $$2.5$$ 倍的人为放大系数并执行了非负截断。
+    ```python
+    from image_evaluator.clip_score_predictor import ClipScorePredictor
 
-而在本工程实现中，保持了纯粹的原始 $$L_2$$ 归一化内积余弦相似度：
+    predictor = ClipScorePredictor()
+    score = predictor.evaluate_clip_score(
+        image_path="sample.png",
+        prompt="an astronaut riding a horse on mars"
+    )
+    print(f"CLIP Score: {score:.4f}")
 
-```math
-S_{\text{raw}} = \frac{v_{\text{img}} \cdot v_{\text{txt}}}{\|v_{\text{img}}\|_2 \|v_{\text{txt}}\|_2}
+    ```
 
-```
+### Directory Batch Evaluation
 
-不进行任何缩放与人工截断，完整保留数学空间的几何距离特性。使用者在撰写学术论文时，需明确指出所采用的具体计算形式。
+Evaluate an entire directory against a shared prompt:
 
-### 特征提取机制与输入契约
+    ```bash
+    image-evaluator --metrics clip \
+        --image path/to/images_dir/ \
+        --prompt "photorealistic landscape at sunset"
 
-输入图像统一调整至 $$224 \times 224$$ 分辨率并按照标准化参数（均值与方差）进行规范化。文本输入在分词后被截断或填充至固定序列长度（77 标记）。若在调用时启用了本指标却未提供 `--prompt` 参数，命令行解析层将立即阻断并退出，防止空提示词导致的无效运算。
+    ```
 
-### 学术文献与参考项目
+    ```python
+    from image_evaluator.clip_score_predictor import ClipScorePredictor
 
-- 奠基论文：Hessel et al., 2021, *CLIPScore: A Reference-Free Evaluation Metric for Image Captioning* (arXiv:2104.08718)
-- 骨干网络预训练：Radford et al., 2021, *Learning Transferable Visual Models From Natural Language Supervision*
-- 上游开源基准库：`Taited/clip-score`
+    predictor = ClipScorePredictor()
+    mean_score = predictor.evaluate_folder_clip_score(
+        folder_path="path/to/images_dir/",
+        prompt="photorealistic landscape at sunset"
+    )
+    print(f"Mean CLIP Score: {mean_score:.4f}")
+
+    ```
 
 ---
 
-# ArcFace (主体身份保真)
+# ArcFace (Subject Identity Fidelity)
 
-> 深度人脸特征空间余弦距离与身份一致性度量
+> Face identity cosine distance evaluation via InsightFace buffalo_l 512-dimensional embeddings
 
-# 主体保真度
-
-主体保真度指标专门用于评估生成人像与参考人像之间生物面部特征与身份归属的一致程度。通过高精度深度人脸识别模型提取五官与骨骼几何特征，在单位超球面隐空间中计算特征向量的角余弦距离，量化个性化定制算法对人物核心身份特征的保持能力。
+ArcFace evaluates subject facial identity preservation across personalization, face-swapping, and subject-driven generation tasks. Powered by InsightFace `buffalo_l`, it extracts 512-dimensional deep facial representations and calculates the angular cosine distance between the generated subject and a ground-truth reference photo.
 
 ---
 
-## 技术规格与基本参数
+## Technical Specifications
 
-| 参数维度 | 详细规格说明 |
+| Parameter | Specification |
 | :--- | :--- |
-| **所属分类** | 面部身份保真度（成对参考评估） |
-| **命令行标识** | `arcface` |
-| **输入约束** | `--image`（生成人像路径或目录）与 `--reference`（参考真实人像路径或目录）必须同时提供 |
-| **输出形式** | 位于区间 $$[0.0, 2.0]$$ 的非负连续标量浮点数 |
-| **数值导向** | **数值越低越优**（0.0 代表特征向量完全重合，身份最吻合） |
-| **主干网络** | InsightFace `buffalo_l` 工业级人脸分析模型包 |
-| **特征维度** | 512 维单位归一化深层人脸嵌入向量 |
-| **学术出处** | Deng et al., CVPR 2019 / 加性角度边距人脸识别算法 |
+| **CLI Argument** | `--metrics arcface` |
+| **Input Constraint** | Paired `--image` and `--reference` (files or directories with matching stems) |
+| **Output Type** | Continuous scalar float in `[0.0, 2.0]` |
+| **Direction** | **Lower is better** (< 0.40 indicates high identity consistency, 0.0 = identical face) |
+| **Backbone Model** | InsightFace `buffalo_l` (ResNet-50 / ArcFace loss) |
+| **Threshold Guidance** | Cosine distance < 0.40 indicates same identity; > 0.60 indicates identity drift |
 
 ---
 
-## 理论背景与度量公式
+## Formulation
 
-输入图像首先经过高灵敏度人脸检测器精确定位关键点并完成仿射对齐。随后由特征识别主干网络将校正后的人脸区域映射至 512 维特征向量 $$u$$ 与 $$v$$。
-
-通过对特征向量执行标准化内积计算余弦相似度，并转化为余弦距离：
+Let $\mathbf{f}_1, \mathbf{f}_2 \in \mathbb{R}^{512}$ be the $L_2$-normalized facial feature vectors:
 
 ```math
-d_{\text{ArcFace}}(u, v) = 1 - \frac{u \cdot v}{\|u\|_2 \|v\|_2}
+\text{Distance}(\mathbf{f}_1, \mathbf{f}_2) = 1 - \frac{\mathbf{f}_1 \cdot \mathbf{f}_2}{\|\mathbf{f}_1\|_2 \|\mathbf{f}_2\|_2}
 
 ```
 
-在数学性质上：
-- 当 $$d = 0.0$$ 时，代表两张图像提取出的身份嵌入方向完全相同。
-- 当两张人脸特征呈直角正交时，$$d = 1.0$$。
-- 当两张图像属于完全无关的不同个体时，在典型的公开数据集基准上，距离通常分布在 0.65 至 0.90 的数值区间。
+If multiple faces are detected, the detector automatically selects the dominant face based on bounding-box area and landmark confidence.
 
 ---
 
-## 结果解读与判定准则
+## Usage Examples
 
-- **无绝对裁决阈值**：同一身份判定阈值受到光照强度、姿态偏角、遮挡程度以及生成风格化因子的强烈影响，严禁直接套用未经校准的固定截断值。
-- **协议一致性准则**：仅可在相同的人脸检测算法包版本、对齐裁剪管道及浮点精度的前提下对比模型间的优劣。
-- **结合美学指标研判**：个性化算法可能由于过拟合产生死板复制原图的高保真假象，需综合考量画面构图与提示词语义匹配度。
+### Single Pair Face Identity Check
 
----
+Verify whether an edited or generated portrait preserves the reference person's identity:
 
-## 适用场景与技术局限
+    ```bash
+    image-evaluator --metrics arcface \
+        --reference real_face.png \
+        --image generated_face.png
 
-- **高度专一的面部度量**：该指标仅量化人脸五官与面部骨骼生理特征，对发型轮廓、衣物纹理、身形比例及背景上下文完全不敏感。
-- **强依赖人脸检测有效性**：当生成画面中面部发生过度遮挡、大角度侧倾、极端模糊或严重形变时，人脸检测失败会导致该指标无法计算。
-- **适用任务领域**：广泛应用于轻量级微调方案、免训练定制生成、换脸重演及多视角角色一致性评测任务。
+    ```
 
----
+    ```python
+    from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
 
-## 命令行调用指南
+    predictor = ArcFaceDistPredictor()
+    distance = predictor.evaluate_arcface_distance(
+        reference_path="real_face.png",
+        generated_path="generated_face.png"
+    )
+    print(f"ArcFace Cosine Distance: {distance:.4f}")
+    print("Verdict: " + ("Same Identity" if distance < 0.45 else "Identity Drift Detected"))
 
-成对单图评估。
+    ```
 
-计算单张生成人像与单张参考真实照片之间的身份余弦距离：
+### Directory Batch Evaluation
 
-```bash
-image-evaluator --metrics arcface \
-    --image path/to/generated_face.png \
-    --reference path/to/real_reference.png
+Evaluate facial identity preservation across pairs of images with matching stems:
 
-```
+    ```bash
+    image-evaluator --metrics arcface \
+        --reference path/to/real_faces/ \
+        --image path/to/generated_faces/
 
-目录批量比对。
+    ```
 
-对两个目录中的成对人像按文件名升序严格配对并计算批次平均距离：
+    ```python
+    from image_evaluator.arcface_dist_predictor import ArcFaceDistPredictor
 
-```bash
-image-evaluator --metrics arcface \
-    --image path/to/generated_faces/ \
-    --reference path/to/real_references/
+    predictor = ArcFaceDistPredictor()
+    mean_dist = predictor.evaluate_folder_arcface_distance(
+        reference_folder="path/to/real_faces/",
+        generated_folder="path/to/generated_faces/"
+    )
+    print(f"Mean ArcFace Distance: {mean_dist:.4f}")
 
-```
-
----
-
-## 深入学术细节与边界处理
-
-### 人脸检测机制与异常处理
-
-预测器采用 `FaceAnalysis(name="buffalo_l")` 模块执行人脸检测。当输入画面中检测到多张人脸时，默认选取检测置信度最高的主人脸特征（即首个人脸索引 `faces[0].embedding`）。若生成图或参考图中任意一方未能检出有效人脸，预测器将返回缺失值并妥善处理，避免抛出底层不可恢复异常。
-
-### 批量配对契约与对齐准则
-
-在目录批量评测模式下，系统执行字典序严格配对机制：
-
-```python
-zip(sorted(reference_files), sorted(generated_files))
-
-```
-
-双方目录内的有效图像文件数量必须完全一致。若在某一图像对中因面部检测失败导致分值缺失，系统将依据有效样本进行过滤聚合，保障最终统计均值的数值可靠性。
-
-### 学术文献与参考项目
-
-- 奠基论文：Deng et al., 2019, *ArcFace: Additive Angular Margin Loss for Deep Face Recognition* (arXiv:1801.07698)
-- 官方实现开源库：`deepinsight/insightface`
-- 模型权重规格：`buffalo_l` 官方预训练识别包
+    ```
 
 ---
 
-# LPIPS (深度感知距离)
+# LPIPS (Perceptual Distance)
 
-> AlexNet 多尺度深层卷积特征加权感知差异
+> Learned Perceptual Image Patch Similarity using AlexNet multi-scale deep features
 
-# 感知特征距离
-
-学习感知图像块相似度（Learned Perceptual Image Patch Similarity，简称 LPIPS）由 Richard Zhang 等人于 CVPR 2018 提出。该指标利用在 ImageNet 上预训练的深度卷积网络提取多尺度特征，并通过拟合真实人类感知差异判断的数据集学习特征层级加权，用于量化两幅图像之间的感知失真。
+Learned Perceptual Image Patch Similarity (LPIPS) by Zhang et al. (CVPR 2018) evaluates perceptual fidelity across generated and reference images. By extracting multi-scale activations from a deep neural network and applying learned channel weights, it correlates strongly with human subjective judgments of image similarity.
 
 ---
 
-## 核心规格与指标特性
+## Technical Specifications
 
-| 参数维度 | 规范与技术事实 |
+| Parameter | Specification |
 | :--- | :--- |
-| **命令行参数** | `--metrics lpips` |
-| **输入约束** | 必须成对提供 `--image` 与 `--reference`（单图或目录同名配对） |
-| **输出形式** | 位于区间 $$[0.0, +\infty)$$ 的无量纲浮点数 |
-| **数值导向** | **越低越优**（0.0 代表感知特征完全一致） |
-| **预训练骨干** | AlexNet 经典架构（v0.1 官方权重） |
-| **动态范围** | 输入张量内部归一化映射至 $$[-1.0, 1.0]$$ |
-| **学术出处** | Zhang et al., "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric", CVPR 2018 |
+| **CLI Argument** | `--metrics lpips` |
+| **Input Constraint** | Paired `--image` and `--reference` (identical spatial dimensions required) |
+| **Output Type** | Continuous scalar float in `[0.0, +inf)` |
+| **Direction** | **Lower is better** (0.0 represents identical perceptual features) |
+| **Backbone Architecture** | Official `lpips` v0.1 (AlexNet trunk) |
+| **Dynamic Range** | Normalized to `[-1.0, 1.0]` internally |
+| **Academic Citation** | Zhang et al., "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric", CVPR 2018 |
 
 ---
 
-## 理论推导与数学形式
+## Formulation
 
-LPIPS 将参考图像 $$x$$ 与待测图像 $$x_0$$ 输入预训练特征提取网络，提取 $$L$$ 个特征层的空间激活值。在每个网络层 $$l$$，先对通道维度进行 $$L_2$$ 范数单位化，随后乘以通道权重向量 $$w_l$$，最后在空间维度计算均方误差并跨层求和：
+LPIPS extracts feature activations across $L$ layers from reference $x$ and generated $x_0$. Within each layer $l$, feature channels are normalized by $L_2$ norm, scaled by learned vector $w_l$, and spatially averaged:
 
 ```math
 d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y}^l_{hw} - \hat{y}_{0, hw}^l \right) \right\|_2^2
 
 ```
 
-其中：
-- $$\hat{y}^l, \hat{y}_0^l$$ 表示第 $$l$$ 层的单位化特征图激活；
-- $$H_l, W_l$$ 分别为该层特征图的高度与宽度；
-- $$w_l$$ 为通过人类主观两两偏好数据训练学习得到的通道缩放权重向量。
+---
+
+## Strict Dimension Check & Fail-Fast Policy
+
+- **No Silent Resizing**: Input pairs must strictly match in dimensions ($H_{\text{ref}} = H_{\text{gen}}$ and $W_{\text{ref}} = W_{\text{gen}}$). The engine strictly terminates with a `ValueError` on size mismatch to prevent high-frequency interpolation distortion.
+- **Exact Stem Alignment**: In directory mode, files pair strictly by case-sensitive stem across formats. Any unpaired file triggers an immediate halt.
 
 ---
 
-## 空间尺寸强校验与输入契约
+## Usage Examples
 
-- **禁止隐式插值**：两幅待对比图像在分辨率上必须完全一致（$$H_{\text{ref}} = H_{\text{gen}}$$ 且 $$W_{\text{ref}} = W_{\text{gen}}$$）。若存在尺寸差异，底层直接抛出异常拦截，绝不进行隐式双线性缩放以防产生虚假失真。
-- **色彩空间标准化**：输入图像自动转换为标准三通道张量，并由原始数值范围映射至归一化动态范围 $$[-1.0, 1.0]$$。
-- **严格主名文件匹配**：在目录评估模式下，严格根据忽略扩展名的大小写匹配机制对齐相同主名的文件；任何无法匹配的单边文件将导致整批报错。
+### Single Pair Evaluation
 
----
+Measure deep perceptual distance between a generated sample and ground truth:
 
-## 命令行调用范例
+    ```bash
+    image-evaluator --metrics lpips \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
 
-单对图像评测。
+    ```
 
-评估单幅生成图像与对应基准参考图的感知距离：
+    ```python
+    from image_evaluator.lpips_predictor import LPIPSPredictor
 
-```bash
-image-evaluator --metrics lpips \
-    --reference path/to/reference.png \
-    --image path/to/generated.png
+    predictor = LPIPSPredictor()
+    distance = predictor.evaluate_lpips(
+        reference_path="path/to/reference.png",
+        generated_path="path/to/generated.png"
+    )
+    print(f"LPIPS Distance: {distance:.4f}")
 
-```
+    ```
 
-目录批量评测。
+### Directory Batch Evaluation
 
-对两个目录中同名文件执行逐对感知距离计算并统计均值：
+Compute pairwise perceptual distance across directories of matching files:
 
-```bash
-image-evaluator --metrics lpips \
-    --reference path/to/reference_folder/ \
-    --image path/to/generated_folder/
+    ```bash
+    image-evaluator --metrics lpips \
+        --reference path/to/reference_folder/ \
+        --image path/to/generated_folder/
 
-```
+    ```
 
----
+    ```python
+    from image_evaluator.lpips_predictor import LPIPSPredictor
 
-## 深入工程细节与诊断建议
+    predictor = LPIPSPredictor()
+    mean_dist = predictor.evaluate_folder_lpips(
+        reference_folder="path/to/reference_folder/",
+        generated_folder="path/to/generated_folder/"
+    )
+    print(f"Mean LPIPS: {mean_dist:.4f}")
 
-### 为什么感知距离在全局平移或色偏下表现稳健
-
-传统像素级指标（如峰值信噪比）对全局单色偏极其敏感，微小的整体亮度偏移即可导致数值腰斩。而 LPIPS 依赖深层卷积的感受野和特征不变性，能够有效容忍微小的亚像素平移与微弱的全局曝光偏差，聚焦衡量边缘结构崩溃、模糊涂抹及非自然伪影。
-
-### 关于骨干网络选择的官方共识
-
-尽管 VGG 与 SqueezeNet 同样可作为特征提取器，但在官方基准评测中，AlexNet 架构在与人类主观感知一致性（BAPPS 数据集评测）上表现最为稳定均衡，且显存与内存消耗极低。本套件固定绑定官方推荐的 AlexNet 骨干。
-
----
-
-# SSIM (结构相似性)
-
-> 局部高斯滑动窗口亮度、对比度与结构三分量统计相似度
-
-# 结构相似性
-
-结构相似性指数（Structural Similarity Index Measure，简称 SSIM）由 Zhou Wang 等人于 IEEE TIP 2004 提出。SSIM 打破了传统均方误差仅关注像素绝对能量偏差的局限，将图像局部失真解耦为亮度、对比度与结构结构相关性三个物理分量，成为计算机视觉与图像处理领域应用最广泛的结构保真度基准。
+    ```
 
 ---
 
-## 核心规格与指标特性
+# SSIM (Structural Similarity)
 
-| 参数维度 | 规范与技术事实 |
+> Structural Similarity Index Measure via 11x11 Gaussian window decomposition
+
+The Structural Similarity Index Measure (SSIM) evaluates the structural degradation between two images. Developed by Wang et al. (IEEE TIP 2004), it decouples image similarity into luminance, contrast, and structural covariance across localized sliding Gaussian patches.
+
+---
+
+## Technical Specifications
+
+| Parameter | Specification |
 | :--- | :--- |
-| **命令行参数** | `--metrics ssim` |
-| **输入约束** | 必须成对提供 `--image` 与 `--reference`（单图或目录同名配对） |
-| **输出形式** | 位于区间 $$[-1.0, 1.0]$$ 的标量浮点数 |
-| **数值导向** | **越高越优**（1.0 代表局部结构与对比度完全一致） |
-| **加权核规范** | 严格采用标准二维归一化高斯加权核（窗口尺寸 $$11 \times 11$$，方差 $$\sigma=1.5$$） |
-| **动态标尺** | 严格限定输入浮点范围 $$[0.0, 1.0]$$ 且动态范围常数 $$L=1.0$$ |
-| **学术出处** | Wang et al., "Image Quality Assessment: From Error Visibility to Structural Similarity", IEEE TIP 2004 |
+| **CLI Argument** | `--metrics ssim` |
+| **Input Constraint** | Paired `--image` and `--reference` (dimensions $\ge 11 \times 11$) |
+| **Output Type** | Continuous float in `[-1.0, 1.0]` |
+| **Direction** | **Higher is better** (1.0 = identical structure) |
+| **Kernel Specification** | $11 \times 11$ Gaussian sliding window, $\sigma = 1.5$ |
+| **Multi-Channel Rule** | Computed independently per RGB channel, unweighted arithmetic mean returned |
 
 ---
 
-## 理论推导与数学形式
+## Formulation
 
-设 $$x$$ 与 $$y$$ 为两幅局部图像块，SSIM 将其解耦为三个比较分量：
+For local patches $x$ and $y$, SSIM evaluates:
 
 ```math
-\text{SSIM}(x, y) = [l(x, y)]^\alpha \cdot [c(x, y)]^\beta \cdot [s(x, y)]^\gamma
+\text{SSIM}(x, y) = \frac{(2\mu_x \mu_y + C_1)(2\sigma_{xy} + C_2)}{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}
 
 ```
 
-在经典标准设定下，通常取权重 $$\alpha = \beta = \gamma = 1$$。此时公式可化简为对称乘积形式：
-
-```math
-\text{SSIM}(x, y) = \frac{(2\mu_x\mu_y + C_1)(2\sigma_{xy} + C_2)}{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}
-
-```
-
-其中稳定常数定义为：
-- $$C_1 = (K_1 L)^2, \quad C_2 = (K_2 L)^2$$（默认 $$K_1=0.01, K_2=0.03$$，$$L$$ 为像素动态范围）；
-- 局部均值 $$\mu_x, \mu_y$$、局部方差 $$\sigma_x^2, \sigma_y^2$$ 以及局部协方差 $$\sigma_{xy}$$ 均通过 $$11 \times 11$$ 归一化高斯卷积核滑动加权计算得到。
+where $C_1 = (K_1 L)^2, C_2 = (K_2 L)^2$ with $K_1 = 0.01, K_2 = 0.03, L = 1.0$.
 
 ---
 
-## 边界陷阱与实现准则
+## Usage Examples
 
-- **高斯加权与均匀盒滤波的本质区别**：部分早期工程库错误使用 $$7 \times 7$$ 均匀平权盒式滤波替代高斯滤波，导致局部权重失真并在边缘产生跳变。本套件严格对齐 Wang 2004 原始高斯窗口与反射填充协议，与科学计算标准库 Scikit-Image 保持绝对误差小于 $$3 \times 10^{-7}$$ 的极限对齐。
-- **空间最小尺寸限制**：因卷积核尺寸为 $$11 \times 11$$，输入图像的高度与宽度均不得小于 11 像素。若任意维度低于 11 像素，系统将立即抛出异常阻断运行，坚决避免生成非法静默空值。
-- **多通道无加权平均**：对红、绿、蓝三个色彩通道分别独立计算全图有效像素的局部均值，最终返回三个通道分数的无加权算术平均值。
+### Single Pair SSIM
 
----
+Measure structural statistical similarity between two registered images:
 
-## 命令行调用范例
+    ```bash
+    image-evaluator --metrics ssim \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
 
-单对图像评测。
+    ```
 
-评估单幅生成图像与参考图的局部结构相似性：
+    ```python
+    from image_evaluator.ssim_predictor import SSIMPredictor
 
-```bash
-image-evaluator --metrics ssim \
-    --reference path/to/reference.png \
-    --image path/to/generated.png
+    predictor = SSIMPredictor()
+    similarity = predictor.evaluate_ssim(
+        reference_path="path/to/reference.png",
+        generated_path="path/to/generated.png"
+    )
+    print(f"SSIM: {similarity:.4f}")
 
-```
+    ```
 
-目录批量评测。
+### Directory Batch Evaluation
 
-对两个目录中的成对文件执行批处理结构评分：
+Compute pairwise mean structural similarity across directories:
 
-```bash
-image-evaluator --metrics ssim \
-    --reference path/to/reference_folder/ \
-    --image path/to/generated_folder/
+    ```bash
+    image-evaluator --metrics ssim \
+        --reference path/to/reference_folder/ \
+        --image path/to/generated_folder/
 
-```
+    ```
 
----
+    ```python
+    from image_evaluator.ssim_predictor import SSIMPredictor
 
-## 深入工程细节与诊断建议
+    predictor = SSIMPredictor()
+    mean_ssim = predictor.evaluate_folder_ssim(
+        reference_folder="path/to/reference_folder/",
+        generated_folder="path/to/generated_folder/"
+    )
+    print(f"Mean SSIM: {mean_ssim:.4f}")
 
-### 为什么动态范围参数设定至关重要
-
-当图像归一化至浮点 $$[0.0, 1.0]$$ 时，常数 $$C_1, C_2$$ 必须基于 $$L=1.0$$ 计算（$$C_1=0.0001, C_2=0.0009$$）。若错误沿用整数尺度 $$L=255$$，稳定常数将膨胀上万倍，导致公式退化为主导常数比值，测算出的结构分数将虚高失效。
-
-### 结构相似性在局部模糊与伪影检测中的价值
-
-SSIM 对局部高频纹理平滑、涂抹与边缘形变高度敏感，能够精准反映超分辨率模型在细节生成中的局部退化。与 LPIPS 结合使用，能够兼顾深层语义感知与浅层局部像素结构的一致性。
-
----
-
-# PSNR (峰值信噪比)
-
-> 基于逐像素均方误差的底层物理级信号能量重构保真度
-
-# 峰值信噪比
-
-峰值信噪比（Peak Signal-to-Noise Ratio，简称 PSNR）是数字图像处理、有损压缩编解码与底层图像重建任务中最经典、应用最广泛的客观工程评估标准。该指标通过计算最大可能信号功率与影响保真度的重构噪声功率之间的对数比率，以分贝（dB）为单位直观量化像素级的绝对重建质量。
+    ```
 
 ---
 
-## 核心规格与指标特性
+# PSNR (Peak Signal-to-Noise Ratio)
 
-| 参数维度 | 规范与技术事实 |
+> Pixel-level reconstruction fidelity computed from Mean Squared Error
+
+Peak Signal-to-Noise Ratio (PSNR) is the classical baseline metric in digital signal processing and image restoration. Measuring the ratio between maximum signal energy and reconstruction noise, it quantifies strict pixel-level ground-truth fidelity.
+
+---
+
+## Technical Specifications
+
+| Parameter | Specification |
 | :--- | :--- |
-| **命令行参数** | `--metrics psnr` |
-| **输入约束** | 必须成对提供 `--image` 与 `--reference`（单图或目录同名配对） |
-| **输出形式** | 标量浮点数，单位为分贝（dB），区间为 $$[0.0, +\infty)$$ |
-| **数值导向** | **越高越优**（数值越大代表重构噪声功率越小，$$+\infty$$ 代表像素完全重合） |
-| **基准精度** | 与标准科学计算库 Scikit-Image 保持绝对误差小于 $$10^{-5}\text{ dB}$$ 极限对齐 |
-| **数据范围** | 输入浮点图像张量严格限定在 $$[0.0, 1.0]$$，对应最大信号幅值 $$\text{MAX} = 1.0$$ |
-| **计算类型** | 经典底层无参数逐像素均方误差映射 |
+| **CLI Argument** | `--metrics psnr` |
+| **Input Constraint** | Paired `--image` and `--reference` (exact matching spatial dimensions) |
+| **Output Type** | Logarithmic decibels (dB) in `[0.0, +inf)` |
+| **Direction** | **Higher is better** (typical high quality: 30-50 dB; identical: `+inf`) |
+| **Input Range** | Floats normalized to `[0.0, 1.0]`, $\text{MAX}_I = 1.0$ |
+| **Zero-MSE Behavior** | Strictly returns `float("inf")` when images are identical |
 
 ---
 
-## 理论推导与数学形式
+## Formulation
 
-对于尺寸同为 $$H \times W$$、具有 $$C$$ 个色彩通道的两幅图像 $$I_{\text{ref}}$$ 与 $$I_{\text{gen}}$$，首先计算全图通道与像素维度的均方误差（Mean Squared Error）：
+Given ground-truth $I$ and generated $K$ of dimensions $m \times n$:
 
 ```math
-\text{MSE} = \frac{1}{C \cdot H \cdot W} \sum_{c=1}^C \sum_{h=1}^H \sum_{w=1}^W \left( I_{\text{ref}}(c, h, w) - I_{\text{gen}}(c, h, w) \right)^2
+\text{MSE} = \frac{1}{3mn} \sum_{c=1}^3 \sum_{i=0}^{m-1} \sum_{j=0}^{n-1} [I(i, j, c) - K(i, j, c)]^2
 
 ```
-
-峰值信噪比定义为最大信号功率相对于均方误差的以 10 为底的对数比例：
 
 ```math
-\text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right) = 20 \cdot \log_{10}\left( \frac{\text{MAX}_I}{\sqrt{\text{MSE}}} \right)
-
-```
-
-在浮点归一化图像格式下，$$\text{MAX}_I = 1.0$$，因此计算式可简化为：
-
-```math
-\text{PSNR} = -10 \cdot \log_{10}(\text{MSE})
+\text{PSNR} = 10 \cdot \log_{10}\left( \frac{\text{MAX}_I^2}{\text{MSE}} \right)
 
 ```
 
 ---
 
-## 边界行为与特殊情形处理
+## Usage Examples
 
-- **绝对相同样本的无穷大处理**：当生成图像与参考图像在所有通道所有像素上完全数值一致时，$$\text{MSE} = 0$$。系统在数学上严格返回正无穷大（`inf`），绝不人为引入微小偏置项（如 `eps=1e-10`）导致失准。
-- **全目录均值收敛行为**：在目录批处理模式下，由于各样本分数进行算术平均，若目录中存在任意一个逐像素完全匹配的样本（即存在一个 `inf`），全目录计算平均值在数学上即直接收敛为 `inf`。
-- **空间几何强对齐约束**：成对图像的高度和宽度必须严格一致。若尺寸失配，系统执行快速失败拦截，要求先通过上采样或下采样算法完成尺度对齐。
+### Single Pair PSNR
 
----
+Evaluate reconstruction signal-to-noise ratio:
 
-## 命令行调用范例
+    ```bash
+    image-evaluator --metrics psnr \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
 
-单对图像评测。
+    ```
 
-计算单幅生成图像相对于参考原图的峰值信噪比：
+    ```python
+    from image_evaluator.psnr_predictor import PSNRPredictor
 
-```bash
-image-evaluator --metrics psnr \
-    --reference path/to/reference.png \
-    --image path/to/generated.png
+    predictor = PSNRPredictor()
+    psnr_val = predictor.evaluate_psnr(
+        reference_path="path/to/reference.png",
+        generated_path="path/to/generated.png"
+    )
+    print(f"PSNR: {psnr_val:.2f} dB")
 
-```
+    ```
 
-目录批量评测。
+### Directory Batch Evaluation
 
-对两个目录中同名文件执行逐对信噪比测算并统计均值：
+Compute pairwise mean PSNR across directories:
 
-```bash
-image-evaluator --metrics psnr \
-    --reference path/to/reference_folder/ \
-    --image path/to/generated_folder/
+    ```bash
+    image-evaluator --metrics psnr \
+        --reference path/to/reference_folder/ \
+        --image path/to/generated_folder/
 
-```
+    ```
 
----
+    ```python
+    from image_evaluator.psnr_predictor import PSNRPredictor
 
-## 深入工程细节与诊断建议
+    predictor = PSNRPredictor()
+    mean_psnr = predictor.evaluate_folder_psnr(
+        reference_folder="path/to/reference_folder/",
+        generated_folder="path/to/generated_folder/"
+    )
+    print(f"Mean PSNR: {mean_psnr:.2f} dB")
 
-### 为什么整体微小色偏会导致峰值信噪比暴跌
-
-PSNR 基于点对点像素均方误差累加。若画面发生轻微的全局曝光抬升或整体色调偏移，虽然画面的边缘几何、拓扑轮廓与语义结构毫无受损，但每个像素点均产生固定残差并平方累加，导致 MSE 急剧增大，PSNR 显著跌破 20 dB 警戒线。
-
-### 信噪比分贝数值的工程参考基线
-
-在传统图像压缩与重建评估中：
-- 大于 35 dB：人眼通常极难觉察到与原图的区别；
-- 30 dB ~ 35 dB：质量优良，失真处于可接受范畴；
-- 20 dB ~ 30 dB：肉眼可辨别出一定程度的画质退化与压缩伪影；
-- 低于 20 dB：表明存在明显的整体色阶偏移、严重模糊或大面积结构形变。
-
----
-
-# FID (弗雷歇感知距离)
-
-> Inception-v3 特征空间高斯协方差二次型距离
-
-# 弗雷歇距离
-
-弗雷歇起始距离（Fréchet Inception Distance，简称 FID）由 Martin Heusel 等人于 NeurIPS 2017 提出，是评估生成对抗网络（GAN）、扩散模型（Diffusion Models）及自回归生成模型生成分布质量与多样性的公认黄金基准。该指标通过比对真实图像集与生成图像集在预训练特征空间的多元高斯分布差异，综合量化生成样本的保真度与分布覆盖度。
+    ```
 
 ---
 
-## 核心规格与指标特性
+# FID (Fréchet Inception Distance)
 
-| 参数维度 | 规范与技术事实 |
+> Generative distribution distance evaluated in Inception-v3 pool3 feature space
+
+Fréchet Inception Distance (FID), introduced by Heusel et al. (NeurIPS 2017), is the standard benchmark for evaluating the quality and diversity of generative models (GANs, Diffusion Models). It fits continuous multivariate Gaussians to deep feature representations extracted by Inception-v3 and computes the Wasserstein-2 distance between the real and generated distributions.
+
+---
+
+## Technical Specifications
+
+| Parameter | Specification |
 | :--- | :--- |
-| **命令行参数** | `--metrics fid` |
-| **输入约束** | `--reference <dir>` 与 `--image <dir>` 必须同时提供且**均严格要求为已有目录** |
-| **输出形式** | 位于区间 $$[0.0, +\infty)$$ 的非负标量浮点数 |
-| **数值导向** | **越低越优**（0.0 代表两组图像集的激活特征统计分布完全重合） |
-| **特征提取器** | Inception-v3 经典骨干（倒数第二层全局平均池化激活，输出 2,048 维向量） |
-| **执行协议** | `clean-fid==0.1.35`，执行模式 `mode="clean"`，模型名称 `inception_v3` |
-| **学术出处** | Heusel et al., "GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium", NeurIPS 2017 |
+| **CLI Argument** | `--metrics fid` |
+| **Input Constraint** | Two existing directories via `--image` and `--reference` |
+| **Output Type** | Continuous scalar float in `[0.0, +inf)` |
+| **Direction** | **Lower is better** (0.0 represents identical distributions) |
+| **Feature Layer** | Official Inception-v3 (2048-dimensional activations from `pool3`) |
+| **Sample Size Rule** | Biased estimator. Sample size $N \ge 2048$ strongly recommended for publication |
 
 ---
 
-## 理论推导与数学形式
+## Formulation
 
-设真实图像分布特征提取激活均值向量与协方差矩阵为 $$(\mu_r, \Sigma_r)$$，生成图像分布对应统计量为 $$(\mu_g, \Sigma_g)$$。FID 定义为两组多元正态分布之间的第二类瓦瑟斯坦距离（Wasserstein-2 Distance）：
+Let $(\mu_r, \Sigma_r)$ and $(\mu_g, \Sigma_g)$ represent the empirical mean and covariance matrices of Inception-v3 pool3 feature representations:
 
 ```math
-d^2((\mu_r, \Sigma_r), (\mu_g, \Sigma_g)) = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left(\Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2}\right)
+\text{FID} = \|\mu_r - \mu_g\|_2^2 + \text{Tr}\left( \Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2} \right)
 
 ```
 
-其中：
-- $$\|\mu_r - \mu_g\|_2^2$$ 衡量特征中心均值的欧氏距离（反映整体特征偏离）；
-- $$\text{Tr}(\cdot)$$ 表示矩阵的迹（主对角线元素之和）；
-- $$(\Sigma_r \Sigma_g)^{1/2}$$ 为两协方差矩阵乘积的平方根矩阵（反映多维特征协方差结构与多样性离散度）。
+The matrix square root $(\Sigma_r \Sigma_g)^{1/2}$ is resolved using robust Schur decomposition, with imaginary residuals eliminated if numerical conditioning issues arise.
 
 ---
 
-## 为什么选择抗混叠标准化实现
+## Usage Examples
 
-传统 FID 实现库（如 `pytorch-fid` 或早期 TensorFlow 官方脚本）存在严重的工程隐患：
-1. **下采样混叠伪影**：将任意高分辨率图像强制缩放至 Inception 标准分辨率（$$299 \times 299$$）时，若缺乏高质量抗混叠低通滤波，高频几何噪声将污染深层特征提取。
-2. **跨库重采样差异**：PIL、OpenCV 与 PyTorch 的双线性插值实现细节不同，相同图集在不同库下可产生 5 至 10 点的 FID 数值偏差。
+### Dataset Generative Distribution Evaluation
 
-本套件严格锁定 Parmar et al., CVPR 2022 提出的 `clean-fid` 官方标准协议，采用抗混叠滤波双线性重采样管线，杜绝测量漂移。
+Compute the FID score between a folder of synthesized samples and real reference data:
 
----
+    ```bash
+    image-evaluator --metrics fid \
+        --reference path/to/real_dataset/ \
+        --image path/to/generated_dataset/
 
-## 目录输入契约与样本量约束
+    ```
 
-- **双向严格目录契约**：FID 专用于群体分布度量，`--image` 与 `--reference` 必须均为目录。若传入单图文件路径，CLI 参数解析器立即以非零状态码拦截退出。
-- **无需主名文件名配对**：两侧目录允许具有完全不同的文件名、子目录层级与样本总量（$$N_{\text{ref}} \ne N_{\text{gen}}$$）。
-- **递归图片扫描与破损图拦截**：自动递归扫描识别常见格式（`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.npy`）。在提取前对所有图片执行数据完整性校验，破损文件即刻抛出异常拦截。
-- **小样本正向偏差特性**：FID 是样本协方差的有偏估计量。当样本量 $$N < 2048$$ 时，测算出的 FID 数值会系统性偏高。在学术最终榜单对比中，建议提供至少 2,048 张（推荐 50,000 张）样本。
+    ```python
+    from image_evaluator.fid_predictor import FIDPredictor
 
----
+    predictor = FIDPredictor()
+    fid_score = predictor.evaluate_fid(
+        reference_folder="path/to/real_dataset/",
+        generated_folder="path/to/generated_dataset/"
+    )
+    print(f"FID Score: {fid_score:.4f}")
 
-## 命令行调用范例
-
-单指标数据集分布评测。
-
-评估生成图集目录与真实基准图集目录的弗雷歇距离：
-
-```bash
-image-evaluator --metrics fid \
-    --reference path/to/real_dataset/ \
-    --image path/to/generated_dataset/
-
-```
-
-多指标协同评测。
-
-联合计算数据集级分布指标（FID 与 KID）：
-
-```bash
-image-evaluator --metrics fid kid \
-    --reference path/to/real_dataset/ \
-    --image path/to/generated_dataset/
-
-```
+    ```
 
 ---
 
-## 深入工程细节与诊断建议
+# KID (Kernel Inception Distance)
 
-### 不同实现库之间的数值可比性声明
+> Polynomial kernel Maximum Mean Discrepancy unbiased U-statistic for small-sample evaluation
 
-基于 `mode="clean"` 测得的 FID 分数**不能直接与传统历史脚本（如未抗混叠的 pytorch-fid）横向对比**。在论文汇报或基准复现时，必须明确声明采用 Clean-FID 标准模式。
-
-### 小样本调试与大样本测试的策略建议
-
-在开发与快速实验阶段，可使用数百张样本快速验证模型演进趋势（相对值排序依然具备指导价值）；但在正式发布模型评测报告时，务必增大采样规模以消除正向估计偏差。
+Kernel Inception Distance (KID), proposed by Bińkowski et al. (ICLR 2018), measures generative distribution similarity using the squared Maximum Mean Discrepancy (MMD) with a polynomial kernel on Inception representations. Unlike FID, KID is an **unbiased estimator**, delivering statistically reliable benchmarks even on small subsets (e.g. 100 to 1000 samples).
 
 ---
 
-# KID (核最大均值差异)
+## Technical Specifications
 
-> 三次多项式核无偏 U 统计量，专精小样本分布评估
-
-# 核最大均值差异
-
-核起始距离（Kernel Inception Distance，简称 KID）由 Mikołaj Bińkowski 等人于 ICLR 2018 提出，旨在克服弗雷歇距离（FID）严重依赖高斯分布强假设以及在小样本量下存在严重正向经验偏差的理论缺陷。KID 引入再生核希尔伯特空间（RKHS）下的最大均值差异（MMD）理论，利用无偏统计估计量，成为中小规模样本集与特定领域生成评测的首选方案。
-
----
-
-## 核心规格与指标特性
-
-| 参数维度 | 规范与技术事实 |
+| Parameter | Specification |
 | :--- | :--- |
-| **命令行参数** | `--metrics kid` |
-| **输入约束** | `--reference <dir>` 与 `--image <dir>` 必须同时提供且**均严格要求为已有目录** |
-| **输出形式** | 位于实数区间 $$(-\infty, +\infty)$$ 的标量浮点数（通常在 0.0 附近） |
-| **数值导向** | **越低越优**（0.0 代表核特征空间两分布完全一致） |
-| **核函数形式** | 三次多项式核函数 $$k(x, y) = \left(\frac{1}{d} x^T y + 1\right)^3$$，其中维度 $$d = 2048$$ |
-| **统计估计量** | 严格采用无偏 U 统计量（Unbiased U-statistic），允许微弱负值 |
-| **可复现协议** | 默认固定随机种子 `seed=0`，严格执行全局随机状态隔离保存与恢复 |
-| **学术出处** | Bińkowski et al., "Demystifying MMD GANs", ICLR 2018 |
+| **CLI Argument** | `--metrics kid` |
+| **Input Constraint** | Two directories via `--image` and `--reference` |
+| **Output Type** | Mean and standard deviation floats (e.g. `mean +/- std`) |
+| **Direction** | **Lower is better** (0.0 represents matching distributions) |
+| **Estimator Type** | Unbiased U-statistic (may yield minute negative values due to sample variance) |
+| **Resampling Strategy** | Repeated random subset sampling ($N=1000$ per fold) |
 
 ---
 
-## 理论推导与无偏估计机制
+## Formulation
 
-设真实样本特征向量为 $$x \sim \mathbb{P}_r$$，生成样本特征向量为 $$y \sim \mathbb{P}_g$$。最大均值差异的平方可展开为样本点对核函数的期望：
+For Inception features $x, y \in \mathbb{R}^{2048}$, KID utilizes a cubic polynomial kernel:
 
 ```math
-\text{MMD}^2(\mathbb{P}_r, \mathbb{P}_g) = \mathbb{E}[k(x, x')] + \mathbb{E}[k(y, y')] - 2\mathbb{E}[k(x, y)]
+k(x, y) = \left( \frac{1}{d} x^T y + 1 \right)^3, \quad d = 2048
 
 ```
 
-为了在有限离散样本集（大小分别为 $$m$$ 和 $$n$$）上实现**无偏估计**，Bińkowski 等人采用两两排除自身内积的无偏 U 统计量构造评估函数：
+The unbiased squared MMD U-statistic between sample batches $X$ and $Y$ of size $m$ is given by:
 
 ```math
-\text{KID} = \frac{1}{m(m-1)} \sum_{i=1}^m \sum_{j \ne i}^m k(x_i, x_j) + \frac{1}{n(n-1)} \sum_{i=1}^n \sum_{j \ne i}^n k(y_i, y_j) - \frac{2}{mn} \sum_{i=1}^m \sum_{j=1}^n k(x_i, y_j)
+\text{MMD}_u^2(X, Y) = \frac{1}{m(m-1)} \sum_{i \neq j}^m k(x_i, x_j) + \frac{1}{m(m-1)} \sum_{i \neq j}^m k(y_i, y_j) - \frac{2}{m^2} \sum_{i, j}^m k(x_i, y_j)
 
 ```
 
 ---
 
-## 为什么核最大均值差异适合小样本评估
+## Usage Examples
 
-1. **零经验系统偏差**：FID 在样本较少时会因样本协方差的经验估计而产生不可忽视的正偏差（即同一分布自我采样抽检也会呈现明显大于 0 的数值）。KID 的数学期望严格等于真实总体的最大均值差异平方，在小样本（如 $$N < 1000$$）下依然具备可靠的均值无偏性。
-2. **免高斯分布假设**：KID 仅依赖多项式核函数在非线性高维空间中的内积映射，不需要将潜在特征强制拟合为多元正态分布，对复杂的多模态分布具有更强的鲁棒性。
+### Small-Sample Generative Distribution Evaluation
 
----
+Compute unbiased KID mean and standard deviation:
 
-## 负数结果的数学合规性与确定性协议
+    ```bash
+    image-evaluator --metrics kid \
+        --reference path/to/real_dataset/ \
+        --image path/to/generated_dataset/
 
-- **微小负值的数学必然性**：由于 KID 是无偏估计量，当真实生成模型极其优秀（两分布近乎完全重合，真值趋近于 0）或采样存在随机浮动时，估计量围绕 0 点呈现正态对称波动，因此出现微弱的负值（如 `-0.001`）是**统计学完全合规的正常表现**。若人为将其硬截断为 0，反而会引入非零估计偏差。
-- **确定性种子状态隔离**：KID 在计算过程中涉及随机子集采样。本套件在执行前后严格通过环境上下文管理器记录并还原全局随机状态，固定 `seed=0`，确保多次运行结果在比特级完全一致。
+    ```
 
----
+    ```python
+    from image_evaluator.kid_predictor import KIDPredictor
 
-## 命令行调用范例
+    predictor = KIDPredictor()
+    mean_kid, std_kid = predictor.evaluate_folder_kid(
+        reference_folder="path/to/real_dataset/",
+        generated_folder="path/to/generated_dataset/"
+    )
+    print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
 
-单指标数据集评估。
-
-计算生成目录与基准真实目录之间的核最大均值差异：
-
-```bash
-image-evaluator --metrics kid \
-    --reference path/to/real_dataset/ \
-    --image path/to/generated_dataset/
-
-```
-
-双分布指标联合调用。
-
-同时计算宏观高斯分布差异（FID）与无偏多项式核差异（KID）：
-
-```bash
-image-evaluator --metrics fid kid \
-    --reference path/to/real_dataset/ \
-    --image path/to/generated_dataset/
-
-```
+    ```
 
 ---
 
-## 深入工程细节与诊断建议
+# PickScore (Human Preference Alignment)
 
-### 在样本量不足 2,000 张时如何做决策
+> Fine-tuned CLIP ViT-H-14 scoring model trained on large-scale human choice data
 
-当评估测试集样本量受限（例如数以百计的小众风格迁移、医学影像或罕见数据集）时，应当优先采信核最大均值差异（KID）作为主要判决依据，同时辅以成对保真度指标。
-
-### 多进程计算与稳定性保障
-
-为防止在部分 Unix 派生环境（如 macOS spawn 模式）下子进程共享资源引发的数据序列化错误，套件默认采用单进程安全模式执行特征批处理，确保跨平台运行稳定可靠。
+PickScore, introduced by Kirstain et al. (NeurIPS 2023), measures how well generated images align with real-world human preferences. Fine-tuned on the large-scale Pick-a-Pic dataset containing over 500,000 empirical human choices, it goes beyond pure semantic coverage to capture visual aesthetics, artifact avoidance, and compositional balance.
 
 ---
 
-# PickScore (真实偏好对齐)
+## Technical Specifications
 
-> 基于真实人类成对偏好反馈微调的生成质量打分
-
-# 人类偏好对齐
-
-人类偏好对齐指标用于评估生成图像在符合文本提示词意图的前提下，与真实人类审美与主观偏好的贴合程度。传统的对比图文相似度指标主要衡量宽泛的宏观概念重合，往往对细节伪影、构图失衡以及提示词关键细节的忽略缺乏足够的惩罚。该指标基于大规模真实用户盲选偏好数据集微调超大规模视觉语言模型，输出具备概率解释性的对齐打分。
-
----
-
-## 技术规格与基本参数
-
-| 参数维度 | 详细规格说明 |
+| Parameter | Specification |
 | :--- | :--- |
-| **所属分类** | 人类主观偏好与文生图精细对齐 |
-| **命令行标识** | `pickscore` |
-| **输入约束** | 必须提供待测图像路径 `--image`（单文件或目录）以及对应文本提示词 `--prompt` |
-| **输出形式** | 实数标量浮点数（在常见基准数据集上典型取值分布于 15.0 至 25.0 区间） |
-| **数值导向** | **数值越高越优**（更高分值代表更大概率受到人类评测者的普遍青睐） |
-| **骨干模型** | 超大参数量视觉变换器架构（约 9.86 亿参数量） |
-| **预训练权重** | 官方微调模型权重 `yuvalkirstain/PickScore_v1` |
-| **处理器依赖** | 对应多模态特征处理器组件 |
-| **学术出处** | Kirstain et al., NeurIPS 2023 / 基于成对偏好模型微调 |
+| **CLI Argument** | `--metrics pickscore` |
+| **Input Constraint** | `--image` and `--prompt` required |
+| **Output Type** | Continuous scalar float (higher indicates stronger human preference) |
+| **Direction** | **Higher is better** |
+| **Backbone Model** | Fine-tuned `yuvalkirstain/PickScore_v1` (based on OpenCLIP `ViT-H-14`) |
+| **Training Basis** | > 500k real user preference comparisons from Pick-a-Pic |
 
 ---
 
-## 理论背景与打分公式
+## Formulation
 
-### 数学形式化定义
-
-给定文本提示词 $$p$$ 与生成的图像像素张量 $$x$$，分别经由文本编码器与图像编码器提取高维特征表示：
+Given text prompt $y$ and candidate image $x$, PickScore computes the preference logit via normalized visual and textual embeddings:
 
 ```math
-e(p) = \text{TextEncoder}(p), \quad e(x) = \text{ImageEncoder}(x)
+s(x, y) = \cos(\Phi_{\text{visual}}(x), \Phi_{\text{text}}(y))
 
 ```
 
-对特征向量执行标准化 $$L_2$$ 范数归一化处理：
+The probability that image $x_1$ is preferred over $x_2$ given prompt $y$ models the Bradley-Terry choice probability:
 
 ```math
-\hat{e}(p) = \frac{e(p)}{\|e(p)\|_2}, \quad \hat{e}(x) = \frac{e(x)}{\|e(x)\|_2}
-
-```
-
-将单位向量的点积相似度乘以训练期间学习获得的最优温度缩放系数：
-
-```math
-\text{PickScore}(p, x) = \exp(\text{logit\_scale}) \cdot (\hat{e}(p) \cdot \hat{e}(x))
-
-```
-
-### 概率偏好解释
-
-在同一提示词 $$p$$ 条件下对比任意两个候选生成图像 $$x_i$$ 与 $$x_j$$ 时，依据偏好概率模型，人类评测者倾向于选择图像 $$x_i$$ 的先验概率遵循分值差值的逻辑函数：
-
-```math
-P(x_i \succ x_j) = \frac{1}{1 + \exp\left(-\left(\text{PickScore}(p, x_i) - \text{PickScore}(p, x_j)\right)\right)}
-
-```
-
-当对一组 $$K$$ 张候选图片进行联合横向排优时，应用归一化指数变换即可导出人类选择的离散概率分布：
-
-```math
-P(x_i) = \frac{\exp(\text{PickScore}(p, x_i))}{\sum_{k=1}^K \exp(\text{PickScore}(p, x_k))}
+P(x_1 \succ x_2 \mid y) = \frac{\exp(s(x_1, y) / \tau)}{\exp(s(x_1, y) / \tau) + \exp(s(x_2, y) / \tau)}
 
 ```
 
 ---
 
-## 输入契约与运行模式
+## Usage Examples
 
-### 单图评分模式
+### Single Image Human Preference Score
 
-对单张输入图像依据给定提示词直接输出绝对校准分值：
+Evaluate synthetic image appeal against human preference standards:
 
-```bash
-image-evaluator --metrics pickscore \
-    --image sample.png \
-    --prompt "a photograph of a cat exploring the cosmos"
+    ```bash
+    image-evaluator --metrics pickscore \
+        --image sample.png \
+        --prompt "a photorealistic oil painting of a cottage by a lake"
 
-```
+    ```
 
-### 目录批量评测模式
+    ```python
+    from image_evaluator.pickscore_predictor import PickScorePredictor
 
-递归检索指定目录下所有受支持格式的图像文件，分别计算对同一提示词的偏好打分，最终返回全目录算术平均值：
+    predictor = PickScorePredictor()
+    score = predictor.evaluate_pickscore(
+        image_or_folder="sample.png",
+        prompt="a photorealistic oil painting of a cottage by a lake"
+    )
+    print(f"PickScore: {score:.4f}")
 
-```bash
-image-evaluator --metrics pickscore \
-    --image ./generated_folder/ \
-    --prompt "a photograph of a cat exploring the cosmos"
+    ```
 
-```
+### Directory Batch Evaluation
 
-### 严格校验与错误阻断
+Evaluate an entire directory against a prompt:
 
-- **提示词必填约束**：只要启用了本指标，`--prompt` 参数即为强制必选；若缺失或传入空字符串，命令行将立即阻断并以错误代码终止。
-- **无须参考图参数**：该指标属于无参考主观偏好评估，不读取 `--reference` 参数。若用户在混合评测中传入了参考目录供其他指标使用，本指标在计算时完全独立互不干扰。
+    ```bash
+    image-evaluator --metrics pickscore \
+        --image path/to/images_dir/ \
+        --prompt "cinematic lighting portrait of an elderly wizard"
 
----
+    ```
 
-## 硬件开销与离线缓存策略
+    ```python
+    from image_evaluator.pickscore_predictor import PickScorePredictor
 
-| 资源类别 | 详细规格与运行表现 |
-| :--- | :--- |
-| **权重文件规模** | 安全张量模型权重约 3.94 GB |
-| **磁盘缓存位置** | 默认保存在用户本地缓存目录（支持通过环境变量重定向） |
-| **显存峰值需求** | 半精度推理下约占用 2.5 GB 至 3.5 GB 显存 |
-| **内存峰值需求** | 单精度运算下约占用 4.5 GB 至 5.0 GB 系统内存 |
-| **支持加速架构** | 适配图形处理器加速、苹果芯片统一内存加速及通用处理器 |
+    predictor = PickScorePredictor()
+    mean_score = predictor.evaluate_pickscore(
+        image_or_folder="path/to/images_dir/",
+        prompt="cinematic lighting portrait of an elderly wizard"
+    )
+    print(f"Mean PickScore: {mean_score:.4f}")
 
----
-
-## 命令行调用指南
-
-独立调用。
-
-针对单张图像计算人类偏好得分：
-
-```bash
-image-evaluator --metrics pickscore \
-    --image output.png \
-    --prompt "an oil painting of a cottage beside a river"
-
-```
-
-多维度联合评测。
-
-联合美学质量、图文相似度与人类偏好评分，构建多重视角评估矩阵：
-
-```bash
-image-evaluator --metrics aesthetic clip pickscore \
-    --image output.png \
-    --prompt "an oil painting of a cottage beside a river"
-
-```
+    ```
 
 ---
 
-## 深入学术细节与不可比边界
+# Visual Benchmark (Interactive Demo)
 
-### 延迟加载架构与内存优化
+> Interactive multi-metric dashboard and dual-image slider comparative inspection
 
-系统严格实行惰性按需加载设计。在未在命令行显式声明该指标时，不仅不进行近 4GB 的模型权重加载，底层模型定义库亦不会被静默载入，确保在执行轻量级指标评测时实现极速毫秒级响应，杜绝常驻内存泄漏风险。
-
-### 跨提示词不可比性与实验控制
-
-绝对得分高度依赖于提示词的词频特征、语义抽象层级与文本嵌入范数。跨越不同提示词直接比较绝对打分（例如将简单名词提示词的得分与复杂场景提示词的得分横向对比）在学术上是不成立的。评测不同模型或采样算法时，必须确保测试提示词完全一致。
-
-### 硬件资源需求与运行环境配置
-
-在显存受限的环境中，建议优先配置支持半精度推理的加速后端。一旦权重首次从云端镜像完整下载至本地缓存，后续所有评估运算均在完全断网环境下离线运行，满足保密数据集与学术离线实验环境的严苛要求。
-
-### 学术文献与参考项目
-
-- 奠基论文：Kirstain et al., 2023, *Pick-a-Pic: An Open Dataset of User Preferences for Text-to-Image Generation* (NeurIPS 2023)
-- 官方发布权重：`yuvalkirstain/PickScore_v1`
-- 开源依赖栈：Hugging Face 变换器库生态
+This interactive evaluation benchmark demonstrates how different metric layers respond across three representative generative scenarios: **severe perceptual distortion**, **global warm color tint shift**, and **high-resolution portrait localized editing**. Use the slider or side-by-side view to visually inspect localized differences and compare metric scores.
 
 ---
 
-# Visual Benchmark (多维评测演练)
-
-> 交互式多维指标看板与双图对比实测
-
-# 视觉用例评测演练
-
-本演练中心通过真实算法生成的代表性图像样本，提供可交互的双图拖拽滑块与并排比对能力，将抽象的多维评估分值转化为直观的视觉差异。通过深入剖析不同失真场景下的指标反馈，揭示多尺度、多模态评估体系的互补机制与工程约束。
-
----
-
-## 交互式多维指标看板
-
-以下交互看板汇集了三个典型评测场景：**局部结构位移与严重感知失真**、**全局暖色温色偏与学术互补实证**以及**真实高清人脸局部微调多模态全景评测**。您可以通过滑块拖拽或切换并排视图，直观探查图像局部差异与指标得分。
+## Interactive Metric Showcase
 
 > [交互组件说明: 参见网页版视觉评测用例演练]
 
 ---
 
-## 多尺度成对保真度评估体系
+## Architectural Complementarity
 
-在生成式模型与图像编辑任务中，评估生成图像与基准参考图之间的保真度具有极高的学术与工程复杂度。单一维度的指标无法全面衡量人类主观感知的退化程度，必须构筑跨越微观像素、中观局部结构与宏观深度感知的多尺度评价矩阵。
-
-### 深度特征感知与语义拓扑
-
-基于深度卷积神经网络（如骨干网络架构）提取的多层级特征映射，能够模拟人类视觉皮层的深层响应。感知特征距离对微小的亚像素平移与全局均匀色阶漂移具备良好的稳健度，但在轮廓结构形变、高频伪影与语义异常时会产生极大的距离响应。
-
-### 局部结构统计与滑动窗口
-
-结构相似性度量通过高斯加权滑动窗口（标准尺寸 $$11 \times 11$$），将局部图像块解耦为亮度均值、对比度方差以及结构协方差三个独立分量。该指标针对边缘模糊与几何轮廓破坏具备极高的敏感度。
-
-### 逐像素能量重构与信噪比
-
-峰值信噪比基于逐点均方误差计算信号能量与噪声功率的比值。作为经典数字图像处理的底线基准，它量化了绝对物理数值的重构精度。计算公式如下：
-
-```math
-\text{PSNR} = 10 \cdot \log_{10}\left(\frac{\text{MAX}^2}{\text{MSE}}\right)
-
-```
-
----
-
-## 指标互补性机理与判决权衡
-
-### 全局色偏扰动下的经典指标失效
-
-如上方用例二所示，当图像受到大面积全局色偏干扰（如画面整体色温偏暖）时，传统底层指标容易产生严重的误判：
-
-- 像素级信噪比因为每一个像素的色彩通道数值发生偏移，导致均方误差大幅上升，指标断崖式下跌至 13.87 分贝。
-- 结构相似度由于滑动窗口内的局部均值与对比度统计量受色温漂移扰动，产生仅有 0.2959 的极低分值（假阳性严重退化）。
-- 与之相对，基于深度特征的感知距离指标准确识别出图像中的几何轮廓、物体拓扑与语义内容完全完好，录得 0.1376 的高保真得分。
-
-此用例充分印证了在涉及复杂光照与色彩渲染的生成任务中，结合深度感知指标的绝对必要性。
-
-### 局部高频形变下的三维一致警报
-
-如上方用例一所示，当画面发生局部边缘撕裂、几何拓扑破坏与纹理扭曲时，底层像素重构（18.05 分贝）、中层结构统计（0.4368）与高层深度特征感知（0.7219）同时亮起严重失真警报。这种跨尺度的三维一致判决，为流水线自动化拦截缺陷生成样本提供了铁证。
-
-### 高清人脸编辑的多模态综合校验
-
-在用例三的高清人脸局部编辑（例如增加眼镜）场景中，评估维度进一步扩展至面部生物特征身份与图文语义对齐：
-
-- **身份保真约束**：利用人脸特征提取模型抽取 512 维特征向量，比对编辑前后的余弦距离（本例为 0.4481，显著低于同一人判定阈值 0.68），确认未发生身份漂移。
-- **指令遵从验证**：通过跨模态对齐网络验证生成图像与文本指令的吻合程度（分值 0.2353）。
-- **非编辑区完好性**：成对指标全面确认面部未修改区域及背景结构高度重合（相似度 0.9172，感知距离 0.0901）。
-
----
-
-## 空间几何对齐与快速失败机制
-
-成对保真度指标对图像的空间几何对齐具有极高的确定性要求。本评测套件在底层严格遵循快速失败原则，杜绝由于不可见预处理引发的评估偏差。
-
-### 隐式插值禁止原则
-
-当输入的参考图像与待测生成图像在空间尺寸上存在任何不一致（即宽或高不满足 $$H_{\text{ref}} = H_{\text{gen}}$$ 且 $$W_{\text{ref}} = W_{\text{gen}}$$）时，系统将立即抛出异常并终止运行：
-
-- 严禁在底层悄悄执行双线性或最近邻插值缩放，因为任何插值算法都会引入高频平滑或振铃伪影，从而污染深度感知特征。
-- 用户必须显式决定重采样策略与对齐基准。
-
-### 严格维度匹配约束
-
-除成对样本尺寸一致外，结构相似度算法依赖 $$11 \times 11$$ 的高斯滑动窗口。若输入图像的分辨率低于 11 像素，计算层将直接拦截，防止出现退化异常。
-
----
-
-## 本地命令行复现与实战指南
-
-本演练文档中所展示的所有实测指标均可通过命令行评测工具完全复现。
-
-### 基础成对指标复现
-
-在包含样本图像的目录下，执行以下命令即可一键获取深度特征、结构相似度与峰值信噪比：
-
-```bash
-image-evaluator --metrics lpips ssim psnr --reference reference/case_01.png --image generated/case_01.png
-
-```
-
-### 全量多模态指标评估
-
-针对包含文本提示词引导的人像编辑任务，可组合加载美学预测器、跨模态对齐与人脸生物特征模块：
-
-```bash
-image-evaluator --metrics aesthetic clip arcface lpips ssim psnr --reference reference/case_03.png --image generated/case_03.png --prompt "give the man glasses"
-
-```
-
-### 跨尺度预处理对齐规范
-
-若待评估的生成模型输出分辨率与基准图不一致（例如 512 像素对比 1024 像素），推荐在评测前使用高质量防混叠滤波算法完成尺寸归一化，确保空间对齐与评测结论的数学严谨性。
-
-```bash
-python -c "from PIL import Image; img = Image.open('input.png'); img.resize((1024, 1024), Image.Resampling.LANCZOS).save('aligned.png')"
-
-```
+1. **LPIPS (Perceptual Deep Feature Layer)**: Highly robust against global uniform tint or minor sub-pixel shifts, but fires an alarm upon textural destruction or geometric contour tears.
+2. **SSIM (Structural Statistical Layer)**: Evaluates local covariance across an $11 \times 11$ window. Highly sensitive to contour blurs and edge artifacts.
+3. **PSNR (Physical Pixel Layer)**: Evaluates absolute mean squared error on pixel intensity. Highly sensitive to subtle global luminance shifts.

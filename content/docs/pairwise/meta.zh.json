@@ -1,5 +1,5 @@
 {
-  "title": "Pairwise Fidelity Triad",
+  "title": "成对保真度三元组",
   "pages": [
     "lpips",
     "ssim",

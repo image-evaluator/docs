@@ -1,0 +1,189 @@
+---
+title: 概览与快速开始
+description: 统一图像质量与多维对齐评估套件
+---
+
+# 概览与快速开始
+
+`image-evaluator` 是一套面向生成式人工智能研究员与工程实践者的轻量级统一评估套件。该工具在统一的接口规范下，系统性覆盖了生成图像质量的**九大核心评估维度**：单图视觉美学质量预测、文本图像跨模态语义对齐、主体人脸身份保真度、成对图像保真度三元组（深度感知特征距离、结构统计相似度、峰值信噪比）、数据集分布保真度（双特征空间弗雷歇距离与核感知距离）以及人类主观偏好对齐评分。
+
+---
+
+## 评估维度与指标矩阵
+
+本套件根据评估目标和输入数据的层级，将九项核心指标划分为四大体系：
+
+| 评估维度 | 指标名称 | 核心机制与特征空间 | 取值方向 | 对应文档 |
+| :--- | :--- | :--- | :--- | :--- |
+| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [Aesthetic (单图美学)](/zh/single-image/aesthetic) |
+| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [CLIP Score (图文对齐)](/zh/single-image/clip) |
+| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [ArcFace (主体保真)](/zh/single-image/arcface) |
+| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [LPIPS (深度感知)](/zh/pairwise/lpips) |
+| **成对结构统计** | `ssim` | $11 \times 11$ 高斯局部加权结构相似度 | 数值越高越优 | [SSIM (结构相似)](/zh/pairwise/ssim) |
+| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [PSNR (峰值信噪比)](/zh/pairwise/psnr) |
+| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [FID (弗雷歇距离)](/zh/distribution/fid) |
+| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [KID (核最大均值)](/zh/distribution/kid) |
+| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [PickScore (偏好对齐)](/zh/preference/pickscore) |
+
+---
+
+## 核心能力矩阵导览
+
+<Cards>
+  <Card title="单图与跨模态对齐" href="/zh/single-image/aesthetic" description="评估单图美学质量、提示词语义遵从度以及人脸主体身份一致性。" />
+  <Card title="成对保真度三元组" href="/zh/pairwise/lpips" description="解耦深层感知纹理 (LPIPS)、结构轮廓 (SSIM) 与底层像素均方误差 (PSNR)。" />
+  <Card title="数据集生成分布" href="/zh/distribution/fid" description="度量大样本分布距离 (FID) 与千张小样本无偏统计量 (KID)。" />
+  <Card title="人类真实偏好对齐" href="/zh/preference/pickscore" description="利用经过真实人类成对打分反馈微调的模型评测生成质感。" />
+  <Card title="交互式实测演练" href="/zh/benchmark/visual-demo" description="探查严重几何撕裂、全局暖色温色偏与人脸编辑下的多维指标联动。" />
+</Cards>
+
+---
+
+## 快速开始
+
+<Steps>
+  <Step>
+    ### 环境安装
+
+    在 Python 3.11+ 环境中安装发布版本：
+
+    ```bash
+    pip install image-evaluator
+    ```
+  </Step>
+
+  <Step>
+    ### 单图视觉美学评分
+
+    计算单张图像或目录的 LAION 视觉美学评分：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics aesthetic --image path/to/sample.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.laion_ai_aesthetic_predictor import LaionAiAestheticPredictor
+
+        predictor = LaionAiAestheticPredictor()
+        score = predictor.evaluate_aesthetic_score("path/to/sample.png")
+        print(f"美学评分: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 图文语义匹配与人类偏好评估
+
+    同时评估生成图片与提示词的吻合度以及人类主观审美偏好：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics clip pickscore \
+            --image path/to/sample.png \
+            --prompt "an astronaut riding a horse on mars"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.clip_score_predictor import ClipScorePredictor
+        from image_evaluator.pickscore_predictor import PickScorePredictor
+
+        clip_pred = ClipScorePredictor()
+        pick_pred = PickScorePredictor()
+
+        prompt = "an astronaut riding a horse on mars"
+        clip_val = clip_pred.evaluate_clip_score("path/to/sample.png", prompt=prompt)
+        pick_val = pick_pred.evaluate_pickscore("path/to/sample.png", prompt=prompt)
+
+        print(f"CLIP 图文对齐: {clip_val:.4f}, PickScore 偏好: {pick_val:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 成对图像保真度三元组评测
+
+    对比生成图相对参考原图的多尺度重构精度：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics lpips ssim psnr \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.lpips_predictor import LPIPSPredictor
+        from image_evaluator.ssim_predictor import SSIMPredictor
+        from image_evaluator.psnr_predictor import PSNRPredictor
+
+        lpips_p = LPIPSPredictor()
+        ssim_p = SSIMPredictor()
+        psnr_p = PSNRPredictor()
+
+        ref, gen = "path/to/reference.png", "path/to/generated.png"
+        print(f"LPIPS 感知距离: {lpips_p.evaluate_lpips(ref, gen):.4f}")
+        print(f"SSIM 结构相似:   {ssim_p.evaluate_ssim(ref, gen):.4f}")
+        print(f"PSNR 峰值信噪比: {psnr_p.evaluate_psnr(ref, gen):.2f} dB")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 数据集生成分布距离评测
+
+    评估生成图库与真实图库之间的特征分布距离：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics fid kid \
+            --reference path/to/real_folder/ \
+            --image path/to/generated_folder/
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator.fid_predictor import FIDPredictor
+        from image_evaluator.kid_predictor import KIDPredictor
+
+        fid_p = FIDPredictor()
+        kid_p = KIDPredictor()
+
+        real_dir, gen_dir = "path/to/real_folder/", "path/to/generated_folder/"
+        print(f"FID 分布距离: {fid_p.evaluate_fid(real_dir, gen_dir):.4f}")
+
+        mean_kid, std_kid = kid_p.evaluate_kid(real_dir, gen_dir)
+        print(f"KID 无偏统计量: {mean_kid:.6f} (+/- {std_kid:.6f})")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+---
+
+## 核心架构原则
+
+<Accordions>
+  <Accordion title="延迟加载架构与零显存泄漏">
+    本套件采用按需初始化设计，仅加载命令行 `--metrics` 中显式声明的计算模型与权重。未选用的重量级模型（例如近 10 亿参数的 PickScore 或人脸识别 InsightFace）在运行期间零初始化、零内存占用，有效防止长周期批量任务中的显存泄漏。
+  </Accordion>
+
+  <Accordion title="严格空间几何对齐与快速失败">
+    成对指标严格要求输入两图空间尺寸完全一致 ($H_{\text{ref}} = H_{\text{gen}}$ 且 $W_{\text{ref}} = W_{\text{gen}}$)。底层绝不进行隐式双线性插值缩放，确保测试指标完全不受重采样伪影干扰。
+  </Accordion>
+
+  <Accordion title="硬件加速与多平台支持">
+    原生支持 Linux (CUDA 加速与 CPU)、macOS (Apple Silicon Metal MPS 与 CPU)。系统自动探测最佳运行设备，无需繁琐的设备配置代码。
+  </Accordion>
+</Accordions>
