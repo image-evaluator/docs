@@ -1,4 +1,7 @@
 export interface Env {
+  AI?: {
+    run: (model: string, options: Record<string, unknown>) => Promise<unknown>;
+  };
   AI_API_KEY?: string;
   AI_API_BASE?: string;
   AI_MODEL?: string;
@@ -27,7 +30,7 @@ const CORS_HEADERS: Record<string, string> = {
 
 const SYSTEM_PROMPT = `You are the technical AI Assistant for Image Evaluator, a production-grade multidimensional evaluation toolkit for AI image generation covering 9 core metrics:
 
-1. aesthetic: LAION aesthetic predictor using OpenCLIP ViT-L-14 embeddings + linear regression head. Range [1, 10]; higher is better. Measures overall visual perceptual appeal.
+1. aesthetic: LAION aesthetic predictor using OpenCLIP ViT-L-14 embeddings + linear regression head. Range [1, 10]; higher is better. Measures overall visual appeal.
 2. clip: CLIP Score measuring text-to-image semantic alignment using OpenAI clip-vit-base-patch32 cosine similarity. Range [0, 1]; higher is better.
 3. arcface: Face identity consistency using InsightFace buffalo_l (512-dim embedding cosine distance). Range [0, 2]; lower is better (distance < 0.5 indicates same identity).
 4. lpips: Learned Perceptual Image Patch Similarity using AlexNet multi-scale features. Range [0, 1+]; lower is better. Robust against slight spatial shifts and global color shifts where MSE fails.
@@ -74,20 +77,6 @@ export default {
       return jsonResponse({ error: { message: 'Method not allowed. Use POST / or POST /chat.', type: 'invalid_request' } }, 405);
     }
 
-    const apiKey = env.AI_API_KEY || env.OPENAI_API_KEY || env.AGNES_API_KEY;
-
-    if (!apiKey) {
-      return jsonResponse(
-        {
-          error: {
-            message: 'AI_API_KEY is not configured on this Cloudflare Worker.',
-            type: 'configuration_error',
-          },
-        },
-        503
-      );
-    }
-
     let requestBody: ChatRequestBody;
     try {
       requestBody = await request.json() as ChatRequestBody;
@@ -101,73 +90,131 @@ export default {
     }
 
     const shouldStream = Boolean(requestBody.stream);
-    const apiBase = (env.AI_API_BASE || env.AGNES_API_BASE || 'https://api.openai.com/v1').replace(/\/+$/, '');
-    const model = env.AI_MODEL || env.AGNES_MODEL || 'gpt-4o-mini';
+    const apiKey = env.AI_API_KEY || env.OPENAI_API_KEY || env.AGNES_API_KEY;
 
-    const upstreamPayload = {
-      model,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...messages,
-      ],
-      stream: shouldStream,
-    };
+    // Mode 1: External API proxy (OpenAI, DeepSeek, Minimax, etc.)
+    if (apiKey) {
+      const apiBase = (env.AI_API_BASE || env.AGNES_API_BASE || 'https://api.openai.com/v1').replace(/\/+$/, '');
+      const model = env.AI_MODEL || env.AGNES_MODEL || 'gpt-4o-mini';
 
-    try {
-      const upstreamResponse = await fetch(`${apiBase}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(upstreamPayload),
-      });
+      const upstreamPayload = {
+        model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...messages,
+        ],
+        stream: shouldStream,
+      };
 
-      if (!upstreamResponse.ok) {
-        let errorDetails: unknown = null;
-        try {
-          errorDetails = await upstreamResponse.json();
-        } catch {
-          errorDetails = await upstreamResponse.text();
+      try {
+        const upstreamResponse = await fetch(`${apiBase}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(upstreamPayload),
+        });
+
+        if (!upstreamResponse.ok) {
+          let errorDetails: unknown = null;
+          try {
+            errorDetails = await upstreamResponse.json();
+          } catch {
+            errorDetails = await upstreamResponse.text();
+          }
+          return jsonResponse(
+            {
+              error: {
+                message: 'Upstream AI API returned an error.',
+                status: upstreamResponse.status,
+                details: errorDetails,
+              },
+            },
+            upstreamResponse.status
+          );
         }
+
+        if (shouldStream) {
+          return new Response(upstreamResponse.body, {
+            status: 200,
+            headers: {
+              ...CORS_HEADERS,
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+            },
+          });
+        }
+
+        const responseJson = await upstreamResponse.json();
+        return jsonResponse(responseJson, 200);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
         return jsonResponse(
           {
             error: {
-              message: 'Upstream AI API returned an error.',
-              status: upstreamResponse.status,
-              details: errorDetails,
+              message: 'Failed to proxy request to upstream AI API.',
+              type: 'proxy_error',
+              details: errorMessage,
             },
           },
-          upstreamResponse.status
+          502
         );
       }
-
-      if (shouldStream) {
-        return new Response(upstreamResponse.body, {
-          status: 200,
-          headers: {
-            ...CORS_HEADERS,
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-          },
-        });
-      }
-
-      const responseJson = await upstreamResponse.json();
-      return jsonResponse(responseJson, 200);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      return jsonResponse(
-        {
-          error: {
-            message: 'Failed to proxy request to upstream AI API.',
-            type: 'proxy_error',
-            details: errorMessage,
-          },
-        },
-        502
-      );
     }
+
+    // Mode 2: Native Cloudflare Workers AI (Zero-key fallback)
+    if (env.AI) {
+      try {
+        const cfModel = env.AI_MODEL && env.AI_MODEL.startsWith('@cf/')
+          ? env.AI_MODEL
+          : '@cf/meta/llama-3.2-3b-instruct';
+
+        const stream = await env.AI.run(cfModel, {
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            ...messages,
+          ],
+          stream: shouldStream,
+        });
+
+        if (shouldStream) {
+          return new Response(stream as BodyInit, {
+            status: 200,
+            headers: {
+              ...CORS_HEADERS,
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+            },
+          });
+        }
+
+        return jsonResponse(stream, 200);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        return jsonResponse(
+          {
+            error: {
+              message: 'Cloudflare Workers AI execution failed.',
+              type: 'ai_error',
+              details: errorMessage,
+            },
+          },
+          500
+        );
+      }
+    }
+
+    // Neither configured
+    return jsonResponse(
+      {
+        error: {
+          message: 'Neither AI_API_KEY nor Workers AI binding is configured.',
+          type: 'configuration_error',
+        },
+      },
+      503
+    );
   },
 };
 

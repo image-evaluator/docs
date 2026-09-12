@@ -315,6 +315,7 @@ export function CustomSearchDialog({ open, onOpenChange }: SharedProps) {
                 const delta =
                   parsed.choices?.[0]?.delta?.content ||
                   parsed.choices?.[0]?.message?.content ||
+                  parsed.response ||
                   '';
                 if (delta) {
                   accumulated += delta;
