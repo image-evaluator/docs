@@ -15,6 +15,28 @@ import {
   type SearchItemType,
 } from 'fumadocs-ui/components/dialog/search';
 import { Sparkles, ArrowLeft, Terminal, BookOpen } from 'lucide-react';
+import { marked } from 'marked';
+import katex from 'katex';
+
+function renderMarkdownWithMath(text: string): string {
+  let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
+    try {
+      return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
+    } catch {
+      return match;
+    }
+  });
+
+  processed = processed.replace(/(?<!\\)\$([^\$\n]+?)\$/g, (match, math) => {
+    try {
+      return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
+    } catch {
+      return match;
+    }
+  });
+
+  return marked.parse(processed, { gfm: true, breaks: true }) as string;
+}
 
 interface SharedProps {
   open: boolean;
@@ -242,6 +264,11 @@ export function CustomSearchDialog({ open, onOpenChange }: SharedProps) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const router = useRouter();
 
+  const renderedHtml = useMemo(() => {
+    if (!aiAnswer) return '';
+    return renderMarkdownWithMath(aiAnswer);
+  }, [aiAnswer]);
+
   // Reset state on modal close
   useEffect(() => {
     if (!open) {
@@ -453,8 +480,11 @@ export function CustomSearchDialog({ open, onOpenChange }: SharedProps) {
                   <span>正在检索技术知识库...</span>
                 </div>
               ) : (
-                <div className="whitespace-pre-wrap font-sans text-fd-foreground prose dark:prose-invert max-w-none">
-                  {aiAnswer}
+                <div className="prose prose-sm dark:prose-invert max-w-none text-fd-foreground leading-relaxed [&_h3]:text-sm [&_h3]:font-bold [&_h3]:mt-3 [&_h3]:mb-1 [&_strong]:text-fd-foreground [&_pre]:bg-fd-secondary/60 [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-fd-border [&_pre]:my-2 [&_code]:font-mono [&_code]:text-xs [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_.katex-display]:my-2 [&_.katex-display]:overflow-x-auto">
+                  <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                  {isAiLoading && (
+                    <span className="inline-block h-3.5 w-1.5 animate-pulse bg-fd-primary ml-0.5 align-middle" />
+                  )}
                 </div>
               )}
             </div>
