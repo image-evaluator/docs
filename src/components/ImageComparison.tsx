@@ -14,6 +14,17 @@ export interface ImageComparisonProps {
   className?: string;
 }
 
+function resolveAssetUrl(url: string): string {
+  if (!url || !url.startsWith('/') || url.startsWith('//')) {
+    return url;
+  }
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  if (basePath && !url.startsWith(basePath)) {
+    return `${basePath}${url}`;
+  }
+  return url;
+}
+
 export function ImageComparison({
   beforeImage,
   afterImage,
@@ -133,14 +144,14 @@ export function ImageComparison({
         >
           {/* 参考原图（底层完整呈现） */}
           <img
-            src={beforeImage}
+            src={resolveAssetUrl(beforeImage)}
             alt={`${alt} - ${beforeLabel}`}
             className="absolute inset-0 h-full w-full object-contain pointer-events-none"
           />
 
           {/* 待测生成图（上层基于 clipPath 动态裁剪，暴露右半区） */}
           <img
-            src={afterImage}
+            src={resolveAssetUrl(afterImage)}
             alt={`${alt} - ${afterLabel}`}
             className="absolute inset-0 h-full w-full object-contain pointer-events-none"
             style={{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }}
@@ -193,7 +204,7 @@ export function ImageComparison({
             </div>
             <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-950 dark:border-neutral-800 shadow-sm">
               <img
-                src={beforeImage}
+                src={resolveAssetUrl(beforeImage)}
                 alt={`${alt} - ${beforeLabel}`}
                 className="h-full w-full object-contain"
               />
@@ -209,7 +220,7 @@ export function ImageComparison({
             </div>
             <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-950 dark:border-neutral-800 shadow-sm">
               <img
-                src={afterImage}
+                src={resolveAssetUrl(afterImage)}
                 alt={`${alt} - ${afterLabel}`}
                 className="h-full w-full object-contain"
               />
