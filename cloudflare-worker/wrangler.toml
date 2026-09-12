@@ -1,0 +1,8 @@
+name = "image-evaluator-ai-assistant"
+main = "src/index.ts"
+compatibility_date = "2024-04-01"
+
+[vars]
+AGNES_API_BASE = "https://api.agnes.ai/v1"
+AGNES_MODEL = "agnes-2.5-flash"
+

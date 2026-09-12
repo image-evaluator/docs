@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing & Coverage
+coverage/
+
+# Next.js build output
+.next/
+out/
+.source/
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
+.DS_Store
+*.pem
+
+# Local env files
+.env*.local
+
+# Vercel
+.vercel
+
+# Turbopack cache
+.turbo
+
+# Cloudflare worker build artifacts
+cloudflare-worker/node_modules/
+cloudflare-worker/.wrangler/

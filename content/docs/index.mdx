@@ -1,0 +1,133 @@
+---
+title: 概览与快速开始
+description: 统一图像质量与多维对齐评估套件
+---
+
+# 概览与快速开始
+
+`image-evaluator` 是一套面向生成式人工智能研究员与工程实践者的轻量级统一评估套件。该工具在统一的接口规范下，系统性覆盖了生成图像质量的九大核心评估维度：单图视觉美学质量预测、文本图像跨模态语义对齐、主体人脸身份保真度、成对图像保真度三元组（深度感知特征距离、结构统计相似度、峰值信噪比）、数据集分布保真度（双特征空间弗雷歇距离与核感知距离）以及人类主观偏好对齐评分。
+
+---
+
+## 评估维度与指标矩阵
+
+本套件根据评估目标和输入数据的层级，将九项核心指标划分为四大体系：
+
+| 评估维度 | 指标名称 | 核心机制与特征空间 | 取值方向 | 对应文档 |
+| :--- | :--- | :--- | :--- | :--- |
+| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [单图美学质量](/docs/aesthetic) |
+| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [图文语义匹配](/docs/clip) |
+| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [主体保真度](/docs/arcface) |
+| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [成对保真度评估](/docs/pairwise) |
+| **成对结构统计** | `ssim` | $$11 \times 11$$ 高斯局部加权结构相似度 | 数值越高越优 | [成对保真度评估](/docs/pairwise) |
+| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [成对保真度评估](/docs/pairwise) |
+| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [数据集分布评估](/docs/distribution) |
+| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [数据集分布评估](/docs/distribution) |
+| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [人类偏好对齐](/docs/pickscore) |
+
+---
+
+## 指标选型速查
+
+在开展生成模型评测实验时，建议根据评测任务目标选用针对性指标组合：
+
+- **文生图模型基础评测**：推荐联合使用 `aesthetic`（单图画面美感）、`clip`（提示词文本遵从度）以及 `pickscore`（真实人类综合偏好）。
+- **个性化定制与换脸算法**：必须选用 `arcface` 评测主体身份一致性，并结合 `clip` 验证上下文生成能力。
+- **图像超分辨率与去噪修复**：推荐采用成对保真度三元组 `lpips`、`ssim` 与 `psnr` 进行多层级重构精度评估。
+- **生成对抗网络与扩散模型分布评估**：针对整批数据集评估，必须使用 `fid` 与 `kid` 度量生成分布与真实分布之间的统计距离。
+
+---
+
+## 快速开始
+
+<Steps>
+  <Step>
+    安装运行环境。
+    
+    推荐在 Python 3.11 至 3.14 环境下安装发布版本：
+
+    ```bash
+    python -m pip install image-evaluator==0.2.0
+
+    ```
+  </Step>
+
+  <Step>
+    单图视觉美学评分。
+
+    计算单个图像文件或文件夹内所有图像的平均美学评分：
+
+    ```bash
+    image-evaluator --metrics aesthetic --image path/to/sample.png
+
+    ```
+  </Step>
+
+  <Step>
+    图文对齐与人类偏好评分。
+
+    对单张生成图同时评估提示词语义遵从度与人类偏好打分：
+
+    ```bash
+    image-evaluator --metrics clip pickscore \
+        --image path/to/sample.png \
+        --prompt "a photograph of an astronaut riding a horse on mars"
+
+    ```
+  </Step>
+
+  <Step>
+    成对图像保真度三元组评估。
+
+    计算生成图相对参考原图的多尺度感知与结构重构指标：
+
+    ```bash
+    image-evaluator --metrics lpips ssim psnr \
+        --image path/to/generated.png \
+        --reference path/to/reference.png
+
+    ```
+  </Step>
+
+  <Step>
+    数据集分布距离评测。
+
+    评估生成图像目录与真实数据集目录之间的特征分布距离：
+
+    ```bash
+    image-evaluator --metrics fid kid \
+        --image path/to/generated_folder/ \
+        --reference path/to/real_folder/
+
+    ```
+  </Step>
+</Steps>
+
+---
+
+## 评测准则与解读指南
+
+为保障科学实验与学术对比的严谨性，使用本工具时请严格遵循以下准则：
+
+- **统一评测协议与主干网络**：绝对禁止跨越不同模型权重版本或预处理流程直接比较分值。
+- **控制变量相对比较**：除数学定义严格的指标外，多数深度指标不存在绝对分界阈值，应始终设立基线对照组进行相对比较。
+- **空间尺寸强校验原则**：成对保真度指标（`lpips`、`ssim`、`psnr`）严格拒绝尺寸不一致的输入，杜绝运行时隐式插值引入失真。
+- **严格目录输入约束**：分布级指标（`fid`、`kid`）强制要求双方输入均为已存在目录，且样本量需满足统计可信度要求。
+
+---
+
+## 架构设计与高级选项
+
+<Accordions>
+  <Accordion title="延迟加载架构与内存优化机制">
+    本套件采用按需初始化设计，仅加载命令行 `--metrics` 中显式声明的计算模型与权重。未选用的重量级模型（例如近 10 亿参数的 PickScore 或人脸识别 InsightFace）在运行期间零初始化、零内存占用，有效防止长周期批量任务中的显存泄漏。
+  </Accordion>
+
+  <Accordion title="平台兼容性与硬件加速支持">
+    本工具原生支持 macOS（Apple Silicon 金属加速及 CPU）、Linux（x86_64 及 aarch64）平台。在具备 CUDA 驱动的 Linux 服务器上，通过配置对应后端即可实现多卡并行或单卡高吞吐极速批处理。
+  </Accordion>
+
+  <Accordion title="无偏估计与样本量敏感度说明">
+    弗雷歇距离在小样本情境下存在系统性正向偏差，样本量低于 2048 时会触发警告。核感知距离作为无偏统计量，在真实分布完全重合时可能因样本方差产生微小负值，这是保持数学无偏性的正常统计现象，系统不会人为截断。
+  </Accordion>
+</Accordions>

@@ -1,0 +1,50 @@
+# Image Evaluator
+> 生产级多维图像生成评测工具库，覆盖美学质量、语义对齐、主体保真、成对失真、分布差异与人类偏好 9 大核心评测指标。
+
+## 文档索引
+- [概览与快速开始](/docs): 统一图像质量与多维对齐评估套件
+- [单图美学质量](/docs/aesthetic): 基于预训练视觉骨干网络与线性回归头的单图美学质量评估
+- [图文语义匹配](/docs/clip): 基于多模态对比学习的图像与文本提示词语义匹配度评估
+- [主体保真度](/docs/arcface): 基于深度人脸特征表征的人脸身份一致性与余弦距离评估
+- [成对保真度评估](/docs/pairwise): 覆盖深度感知特征、结构统计与像素级信噪比的多尺度成对图像保真度评估体系
+- [数据集分布评估](/docs/distribution): 基于高质量图像重采样与深度特征提取的数据集总体分布距离评估
+- [人类偏好对齐](/docs/pickscore): 基于大规模人类偏好微调的视觉模型文本与图像多模态对齐评分
+- [视觉用例评测演练](/docs/visual-demo): 基于真实样本的交互式图像质量对比与多维指标演练
+
+## 核心指标矩阵
+| 评估维度 | 指标名称 | 核心机制与特征空间 | 取值方向 | 对应文档 |
+| :--- | :--- | :--- | :--- | :--- |
+| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [单图美学质量](/docs/aesthetic) |
+| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [图文语义匹配](/docs/clip) |
+| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [主体保真度](/docs/arcface) |
+| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [成对保真度评估](/docs/pairwise) |
+| **成对结构统计** | `ssim` | $$11 \times 11$$ 高斯局部加权结构相似度 | 数值越高越优 | [成对保真度评估](/docs/pairwise) |
+| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [成对保真度评估](/docs/pairwise) |
+| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [数据集分布评估](/docs/distribution) |
+| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [数据集分布评估](/docs/distribution) |
+| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [人类偏好对齐](/docs/pickscore) |
+
+## 命令行使用范例
+```bash
+# 1. 单图视觉美学评分
+image-evaluator --metrics aesthetic --image path/to/sample.png
+
+# 2. 图文对齐与人类偏好评分
+image-evaluator --metrics clip pickscore \
+    --image path/to/sample.png \
+    --prompt "a photograph of an astronaut riding a horse on mars"
+
+# 3. 成对图像保真度评估 (LPIPS, SSIM, PSNR)
+image-evaluator --metrics lpips ssim psnr \
+    --image path/to/generated.png \
+    --reference path/to/reference.png
+
+# 4. 数据集分布距离评测 (FID, KID)
+image-evaluator --metrics fid kid \
+    --image path/to/generated_folder/ \
+    --reference path/to/real_folder/
+
+```
+
+## 全量技术文档
+- [全量文档纯文本 (LLMs Full)](/llms-full.txt): 专为 512K 级上下文大语言模型设计的完整技术参考与诊断指南。

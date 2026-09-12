@@ -1,0 +1,14 @@
+{
+  "title": "文档中心",
+  "pages": [
+    "index",
+    "aesthetic",
+    "clip",
+    "arcface",
+    "pairwise",
+    "distribution",
+    "pickscore",
+    "visual-demo"
+  ]
+}
+
