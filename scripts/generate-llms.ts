@@ -159,27 +159,36 @@ async function main(): Promise<void> {
 
   const pagesData: PageData[] = [];
 
-  for (const slug of meta.pages) {
-    if (slug.startsWith('---')) {
-      continue;
+  function collectPages(dir: string, relPrefix = ''): void {
+    const localMetaPath = path.join(dir, 'meta.json');
+    if (!fs.existsSync(localMetaPath)) return;
+    const localMeta: MetaConfig = JSON.parse(fs.readFileSync(localMetaPath, 'utf-8'));
+    for (const item of localMeta.pages) {
+      if (item.startsWith('---')) continue;
+      const subDirPath = path.join(dir, item);
+      if (fs.existsSync(subDirPath) && fs.statSync(subDirPath).isDirectory()) {
+        collectPages(subDirPath, relPrefix ? `${relPrefix}/${item}` : item);
+      } else {
+        const mdxPath = path.join(dir, `${item}.mdx`);
+        if (fs.existsSync(mdxPath)) {
+          const rawContent = fs.readFileSync(mdxPath, 'utf-8');
+          const { title, description, body } = parseFrontmatter(rawContent);
+          const cleanedBody = cleanMdxToMarkdown(body, title);
+          const slug = relPrefix ? `${relPrefix}/${item}` : item;
+          pagesData.push({ slug, title, description, rawContent, cleanedBody });
+        }
+      }
     }
-    const mdxPath: string = path.join(contentDocsDir, `${slug}.mdx`);
-    if (!fs.existsSync(mdxPath)) {
-      console.warn(`Warning: MDX file not found for slug: ${slug} at ${mdxPath}`);
-      continue;
-    }
-    const rawContent: string = fs.readFileSync(mdxPath, 'utf-8');
-    const { title, description, body } = parseFrontmatter(rawContent);
-    const cleanedBody: string = cleanMdxToMarkdown(body, title);
-    pagesData.push({ slug, title, description, rawContent, cleanedBody });
   }
+
+  collectPages(contentDocsDir);
 
   // 1. Generate llms.txt
   const indexPage: PageData | undefined = pagesData.find((p: PageData): boolean => p.slug === 'index');
   const metricTable: string = indexPage ? extractMetricTable(indexPage.rawContent) : '';
 
   const indexList: string = pagesData
-    .map((p: PageData): string => `- [${p.title}](/docs${p.slug === 'index' ? '' : '/' + p.slug}): ${p.description}`)
+    .map((p: PageData): string => `- [${p.title}](${p.slug === 'index' ? '/' : '/' + p.slug}): ${p.description}`)
     .join('\n');
 
   const cliSection: string = [

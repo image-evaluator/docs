@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { RootProvider } from 'fumadocs-ui/provider';
+import { CustomSearchDialog } from '@/components/SearchDialog';
 import 'katex/dist/katex.css';
 import './global.css';
 
@@ -19,7 +20,9 @@ export default function RootLayout({
   return (
     <html lang="zh" className="font-sans" suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
-        <RootProvider>{children}</RootProvider>
+        <RootProvider search={{ SearchDialog: CustomSearchDialog }}>
+          {children}
+        </RootProvider>
       </body>
     </html>
   );

@@ -1,7 +1,6 @@
 import { source } from '@/lib/source';
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
 import type { ReactNode } from 'react';
-import { AIAssistant } from '@/components/AIAssistant';
 
 export default function RootDocsLayout({
   children,
@@ -16,8 +15,8 @@ export default function RootDocsLayout({
       }}
     >
       {children}
-      <AIAssistant />
     </DocsLayout>
   );
 }
+
 

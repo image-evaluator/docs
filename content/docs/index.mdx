@@ -15,15 +15,15 @@ description: 统一图像质量与多维对齐评估套件
 
 | 评估维度 | 指标名称 | 核心机制与特征空间 | 取值方向 | 对应文档 |
 | :--- | :--- | :--- | :--- | :--- |
-| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [单图美学质量](/docs/aesthetic) |
-| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [图文语义匹配](/docs/clip) |
-| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [主体保真度](/docs/arcface) |
-| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [成对保真度评估](/docs/pairwise) |
-| **成对结构统计** | `ssim` | $$11 \times 11$$ 高斯局部加权结构相似度 | 数值越高越优 | [成对保真度评估](/docs/pairwise) |
-| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [成对保真度评估](/docs/pairwise) |
-| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [数据集分布评估](/docs/distribution) |
-| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [数据集分布评估](/docs/distribution) |
-| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [人类偏好对齐](/docs/pickscore) |
+| **感知视觉质量** | `aesthetic` | OpenCLIP `ViT-L-14` 归一化特征 + 线性回归打分头 | 数值越高越优 | [Aesthetic (单图美学)](/single-image/aesthetic) |
+| **图文语义匹配** | `clip` | CLIP `clip-vit-base-patch32` 原始余弦相似度 | 数值越高越优 | [CLIP Score (图文对齐)](/single-image/clip) |
+| **主体身份一致** | `arcface` | InsightFace `buffalo_l` 512 维特征余弦距离 | 数值越低越优 | [ArcFace (主体保真)](/single-image/arcface) |
+| **成对深度感知** | `lpips` | AlexNet 多尺度深层激活特征感知距离 | 数值越低越优 | [LPIPS (感知距离)](/pairwise/lpips) |
+| **成对结构统计** | `ssim` | $$11 \times 11$$ 高斯局部加权结构相似度 | 数值越高越优 | [SSIM (结构相似)](/pairwise/ssim) |
+| **成对像素重构** | `psnr` | 逐像素均方误差对数信噪比 | 数值越高越优 | [PSNR (峰值信噪比)](/pairwise/psnr) |
+| **群体高斯距离** | `fid` | Inception-v3 倒数第二层特征二阶统计距离 | 数值越低越优 | [FID (弗雷歇距离)](/distribution/fid) |
+| **群体核最大均值** | `kid` | Inception-v3 特征多项式核无偏 U 统计量 | 数值越低越优 | [KID (核最大均值)](/distribution/kid) |
+| **人类主观偏好** | `pickscore` | CLIP ViT-H-14 大规模人类真实偏好对齐评分 | 数值越高越优 | [PickScore (偏好对齐)](/preference/pickscore) |
 
 ---
 

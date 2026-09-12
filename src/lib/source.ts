@@ -8,7 +8,7 @@ const files = typeof rawSource.files === 'function'
   : rawSource.files;
 
 export const source = loader({
-  baseUrl: '/docs',
+  baseUrl: '/',
   source: {
     ...rawSource,
     files,
