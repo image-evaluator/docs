@@ -1,6 +1,6 @@
 import { source } from '@/lib/source';
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import { I18nProvider } from 'fumadocs-ui/i18n';
+import { I18nLayoutProvider } from '@/components/I18nLayoutProvider';
 import type { ReactNode } from 'react';
 
 export default async function RootDocsLayout(props: {
@@ -13,13 +13,7 @@ export default async function RootDocsLayout(props: {
   const tree = source.pageTree[lang];
 
   return (
-    <I18nProvider
-      locale={lang}
-      locales={[
-        { locale: 'en', name: 'English' },
-        { locale: 'zh', name: '简体中文' },
-      ]}
-    >
+    <I18nLayoutProvider locale={lang}>
       <DocsLayout
         tree={tree}
         githubUrl="https://github.com/neverbiasu/image-evaluator"
@@ -37,7 +31,8 @@ export default async function RootDocsLayout(props: {
       >
         {props.children}
       </DocsLayout>
-    </I18nProvider>
+    </I18nLayoutProvider>
   );
 }
+
 
