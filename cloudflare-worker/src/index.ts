@@ -1,4 +1,9 @@
 export interface Env {
+  AI_API_KEY?: string;
+  AI_API_BASE?: string;
+  AI_MODEL?: string;
+  // Backward compatibility
+  OPENAI_API_KEY?: string;
   AGNES_API_KEY?: string;
   AGNES_API_BASE?: string;
   AGNES_MODEL?: string;
@@ -20,10 +25,9 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-const LEVEL_0_SYSTEM_PROMPT = `You are the official AI Assistant for Image Evaluator, powered by Agnes 2.5 Flash.
-Image Evaluator is a production-grade multidimensional evaluation toolkit for AI image generation, covering 9 core metrics:
+const SYSTEM_PROMPT = `You are the technical AI Assistant for Image Evaluator, a production-grade multidimensional evaluation toolkit for AI image generation covering 9 core metrics:
 
-1. aesthetic: LAION aesthetic predictor using OpenCLIP ViT-L-14 embeddings + linear regression head. Scores range roughly 1 to 10; higher is better. Measures overall visual perceptual appeal.
+1. aesthetic: LAION aesthetic predictor using OpenCLIP ViT-L-14 embeddings + linear regression head. Range [1, 10]; higher is better. Measures overall visual perceptual appeal.
 2. clip: CLIP Score measuring text-to-image semantic alignment using OpenAI clip-vit-base-patch32 cosine similarity. Range [0, 1]; higher is better.
 3. arcface: Face identity consistency using InsightFace buffalo_l (512-dim embedding cosine distance). Range [0, 2]; lower is better (distance < 0.5 indicates same identity).
 4. lpips: Learned Perceptual Image Patch Similarity using AlexNet multi-scale features. Range [0, 1+]; lower is better. Robust against slight spatial shifts and global color shifts where MSE fails.
@@ -56,7 +60,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -67,16 +70,17 @@ export default {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
-    // Only accept POST / or POST /chat
     if (request.method !== 'POST' || (pathname !== '/' && pathname !== '/chat')) {
       return jsonResponse({ error: { message: 'Method not allowed. Use POST / or POST /chat.', type: 'invalid_request' } }, 405);
     }
 
-    if (!env.AGNES_API_KEY) {
+    const apiKey = env.AI_API_KEY || env.OPENAI_API_KEY || env.AGNES_API_KEY;
+
+    if (!apiKey) {
       return jsonResponse(
         {
           error: {
-            message: 'AGNES_API_KEY is not configured on this Cloudflare Worker.',
+            message: 'AI_API_KEY is not configured on this Cloudflare Worker.',
             type: 'configuration_error',
           },
         },
@@ -97,13 +101,13 @@ export default {
     }
 
     const shouldStream = Boolean(requestBody.stream);
-    const apiBase = (env.AGNES_API_BASE || 'https://api.agnes.ai/v1').replace(/\/+$/, '');
-    const model = env.AGNES_MODEL || 'agnes-2.5-flash';
+    const apiBase = (env.AI_API_BASE || env.AGNES_API_BASE || 'https://api.openai.com/v1').replace(/\/+$/, '');
+    const model = env.AI_MODEL || env.AGNES_MODEL || 'gpt-4o-mini';
 
     const upstreamPayload = {
       model,
       messages: [
-        { role: 'system', content: LEVEL_0_SYSTEM_PROMPT },
+        { role: 'system', content: SYSTEM_PROMPT },
         ...messages,
       ],
       stream: shouldStream,
@@ -114,7 +118,7 @@ export default {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${env.AGNES_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify(upstreamPayload),
       });
@@ -129,7 +133,7 @@ export default {
         return jsonResponse(
           {
             error: {
-              message: 'Upstream Agnes API returned an error.',
+              message: 'Upstream AI API returned an error.',
               status: upstreamResponse.status,
               details: errorDetails,
             },
@@ -156,7 +160,7 @@ export default {
       return jsonResponse(
         {
           error: {
-            message: 'Failed to proxy request to Agnes API.',
+            message: 'Failed to proxy request to upstream AI API.',
             type: 'proxy_error',
             details: errorMessage,
           },
