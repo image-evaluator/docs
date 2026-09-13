@@ -143,6 +143,221 @@ Compare feature distribution shifts between generated and ground-truth directori
 
 ---
 
+# Task Selection Guide
+
+> Metric decision trees, scenario applicability boundaries, and common misuse anti-patterns across generative vision tasks.
+
+Selecting the appropriate evaluation metric is critical for obtaining valid, reproducible scientific conclusions. No single metric universally captures all quality dimensions across generative tasks. Applying a metric outside its theoretical assumptions produces deceptive scores and flawed model rankings.
+
+---
+
+## Core Principles
+
+1. **Relative Comparison Over Absolute Cutoffs**: Never rely on arbitrary absolute thresholds (e.g. "CLIP > 30" or "LPIPS < 0.15"). Evaluate candidate models strictly against baselines under identical test sets, resolutions, and model backbones.
+2. **Spatial Contract Enforcement**: Pairwise metrics (`lpips`, `ssim`, `psnr`) require strictly identical spatial dimensions ($H_{\text{ref}} = H_{\text{gen}}$, $W_{\text{ref}} = W_{\text{gen}}$). Resampling or padding changes perceptual frequency spectra and invalidates comparisons.
+3. **Task Boundary Separation**: Text-to-image prompts (descriptive captions) and image editing instructions (action commands) operate in fundamentally different spaces.
+
+---
+
+## Evaluation Scenario Decision Tree
+
+```mermaid
+flowchart TD
+    Start[Generative Vision Task] --> TaskType{What is the primary task?}
+
+    TaskType -->|Text-to-Image| T2I[T2I Synthesis]
+    TaskType -->|Image Editing| Edit[Image Editing]
+    TaskType -->|Style Transfer| Style[Style Transfer]
+    TaskType -->|Face / Portrait| Face[Face / Portrait Generation]
+    TaskType -->|Super-Resolution| SR[Super-Resolution & Denoising]
+
+    T2I --> T2I_Adherence["1. Text Adherence: clip"]
+    T2I --> T2I_Pref["2. Human Preference: pickscore"]
+    T2I --> T2I_Dist["3. Distribution Quality: fid / kid"]
+    T2I --> T2I_Aesth["4. Visual Aesthetics: aesthetic"]
+
+    Edit --> Edit_Preserve["1. Background/Content Preservation: lpips / ssim"]
+    Edit --> Edit_Warn["2. Instruction Adherence: Requires Directional CLIP (Raw clip invalid)"]
+
+    Style --> Style_Struct["1. Content Preservation: lpips (Relative to baseline)"]
+    Style --> Style_Dist["2. Style Distribution: fid / kid"]
+    Style --> Style_Warn["Warning: SSIM/PSNR drop is expected"]
+
+    Face --> Face_ID["1. Identity Consistency: arcface"]
+    Face --> Face_Percept["2. Perceptual Quality: lpips / aesthetic"]
+
+    SR --> SR_Triad["Fidelity Triad: lpips (Perceptual) + ssim (Structure) + psnr (Pixel SNR)"]
+
+```
+
+---
+
+## Task-by-Task Selection Matrix
+
+| Evaluation Scenario | Recommended Metrics | Baseline Control | Key Invariants & Protocol |
+| :--- | :--- | :--- | :--- |
+| **Text-to-Image (T2I)** | `clip`, `pickscore`, `aesthetic`, `fid`, `kid` | Baseline checkpoint on identical prompt benchmark (e.g. MS-COCO 30k) | Compute `clip` for objective concept presence, `pickscore` for human preference rank, and `fid`/`kid` for distribution realism. |
+| **Image Editing** | `lpips`, `ssim` (for unedited/background regions) | Source image before editing | **Never** use raw `clip` directly against editing instructions. Measure pairwise retention on unedited regions. |
+| **Style Transfer** | `lpips` (relative comparison), `fid`/`kid` (style domain) | Reference content image & baseline style model (e.g. AdaIN) | Expect high LPIPS due to texture alteration. Compare LPIPS increases relative to alternative models; do not use PSNR. |
+| **Face & Portrait Synthesis** | `arcface`, `lpips` | Ground truth identity reference image | `arcface` cosine distance measures identity retention (lower is better); verification requires empirical benchmark calibration. |
+| **Super-Resolution & Restoration** | `lpips`, `ssim`, `psnr` | High-resolution ground truth image | Strict pixel alignment required. Report all three: LPIPS (deep perceptual), SSIM (structural), and PSNR (signal-to-noise ratio). |
+
+---
+
+## Common Misuse Anti-Patterns
+
+### Anti-Pattern 1: Evaluating Editing Instructions with Raw CLIP
+
+  **The Mistake**: Running `image-evaluator --metrics clip --image edited.png --prompt "make it rain"`.
+
+  **Why It Fails**: Standard CLIP evaluates how well an image depicts a static scene description, not whether an action was performed. An image of heavy rain without the original subject may score higher on CLIP than a carefully edited image that preserves the original subject while adding rain.
+
+  **Correct Approach**: Measure pairwise preservation (`lpips`) on source images, and use specialized directional metrics (such as Directional CLIP) to measure trajectory alignment.
+
+### Anti-Pattern 2: Using Single-Sample PickScore as an Absolute Win Rate
+
+  **The Mistake**: Claiming a model has "achieved a 21.5 win rate" because an image produced a PickScore of 21.5.
+
+  **Why It Fails**: PickScore produces unnormalized logit values. The Bradley-Terry probability is defined strictly over the sigmoid difference between two candidate images conditioned on the identical prompt: $P(A > B) = \sigma(S_A - S_B)$.
+
+  **Correct Approach**: Rank multiple candidate outputs for the same prompt using PickScore, or compute empirical pairwise win rates across prompt distributions.
+
+### Anti-Pattern 3: Treating PSNR as a Universal Metric for Generative Diffusion
+
+  **The Mistake**: Penalizing a generative model because its PSNR is below $20\text{ dB}$.
+
+  **Why It Fails**: PSNR computes mean squared pixel error. A 1-pixel subpixel translation or slight perceptual color grading dramatically reduces PSNR below 20 dB while the image remains visually indistinguishable.
+
+  **Correct Approach**: Rely on deep perceptual metrics (`lpips`) for generative evaluation; reserve PSNR for pixel-aligned reconstruction tasks (codecs, denoising).
+
+### Anti-Pattern 4: Overinterpreting FID on Small Sample Sizes
+
+  **The Mistake**: Reporting FID differences between two models evaluated on only 50 or 100 images.
+
+  **Why It Fails**: FID is a biased estimator that systematically overestimates true distribution distance when sample counts are small.
+
+  **Correct Approach**: When sample sizes are constrained, evaluate with the unbiased **KID** metric (`--metrics kid`) alongside FID, and report standard errors across multiple subsets.
+
+### Anti-Pattern 5: Comparing Aesthetic Scores Across Different Visual Domains
+
+  **The Mistake**: Comparing an anime illustration (scoring 5.1) with a commercial photo (scoring 6.2) and concluding the anime generator is inferior.
+
+  **Why It Fails**: Aesthetic predictor models reflect training set biases (such as photographic curation in AVA/SAC). Stylized art, minimalism, and abstract illustrations exhibit systematic distribution shifts.
+
+  **Correct Approach**: Restrict aesthetic scoring to relative comparisons within the identical artistic domain and prompt category.
+
+---
+
+# Batch Evaluation & Performance Best Practices
+
+> Quantitative comparison of invocation modalities, model residency mechanisms, and standard code paradigms for high-throughput batch evaluation.
+
+Evaluating hundreds or thousands of synthetic images requires careful selection of the invocation paradigm. Because deep learning evaluation backbones (such as CLIP, LPIPS, Inception-v3, and PickScore) require substantial memory allocation and weight initialization from disk, improper execution patterns introduce severe cold-start friction.
+
+---
+
+## Quantitative Comparison of the 4 Modalities
+
+| Invocation Modality | Execution Mechanism | Model Weight Initializations ($N$ samples) | Process Overhead | Typical Latency (10 images, CLIP) | Recommendation |
+| :--- | :--- | :---: | :--- | :---: | :---: |
+| **Form 1: Multiple CLI Processes**<br />`for f in *.png; do image-evaluator ...` | Spawns fresh OS subshell & Python interpreter per image | **$N$ times** | Massive: ~0.5s interpreter boot + ~2.0s model weight disk I/O per image | **~25 – 35 seconds** | **Anti-Pattern** (Never use in loops) |
+| **Form 2: Native CLI Directory Mode**<br />`image-evaluator --image folder/ ...` | Single OS process; CLI loads weights once and iterates internal files | **1 time** | Low: 1 interpreter startup + 1 weight load; purely amortized disk I/O | **~2 – 3 seconds** | **Recommended** (For Shell & CI/CD) |
+| **Form 3: Repeated Python `evaluate(...)`**<br />`for img in imgs: evaluate(...)` | Single Python process; `core.py` builds fresh `Predictor` per call | **$N$ times** | Moderate: zero OS process boot, but repeatedly constructs `torch.nn.Module` | **~10 – 18 seconds** | Use only for ad-hoc one-off calls |
+| **Form 4: Direct Predictor Reuse**<br />`pred = ClipScorePredictor(); pred(...)` | Single Python process; Predictor instance stays resident in memory | **1 time** | Optimal: zero redundant allocation; pure pipelined tensor inference | **~1.5 – 2.0 seconds** | **Recommended** (For Python Pipelines) |
+
+---
+
+## Standard Code Paradigms
+
+### Paradigm 1: Native CLI Directory Mode (Form 2)
+
+When orchestrating evaluations via shell scripts or CI/CD pipelines, always pass directory paths directly to `--image` and `--reference`:
+
+    ```bash
+# Evaluates all images in directory against the prompt with a single model load
+    image-evaluator --metrics clip \
+        --image ./generated_samples/ \
+        --prompt "a majestic mountain range at sunrise" \
+        --format json > results.json
+
+    ```
+
+    ```bash
+# Pairs files by stem (e.g. img_01.png with img_01.png) and calculates folder-level averages
+    image-evaluator --metrics lpips ssim psnr \
+        --image ./generated_samples/ \
+        --reference ./ground_truth/ \
+        --format json > results.json
+
+    ```
+
+### Paradigm 2: Python Native Predictor Reuse (Form 4)
+
+For Python services, training scripts, and custom evaluation loops, instantiate the exported `Predictor` class outside the loop and reuse its evaluation methods across samples:
+
+```python
+from PIL import Image
+from image_evaluator import ClipScorePredictor, LPIPSPredictor
+
+# Step 1: Instantiate predictors once (weights stay resident in memory/GPU)
+clip_pred = ClipScorePredictor(device="cpu")
+lpips_pred = LPIPSPredictor(device="cpu")
+
+samples = [
+    ("gen_01.png", "ref_01.png", "a cybernetic wolf in neon city"),
+    ("gen_02.png", "ref_02.png", "an astronaut floating in deep space"),
+]
+
+# Step 2: Iterate over samples with zero model reloading overhead
+results = []
+for gen_path, ref_path, prompt in samples:
+    clip_score = clip_pred.evaluate_clip_score(gen_path, prompt)
+    lpips_score = lpips_pred.evaluate_lpips(ref_path, gen_path)
+
+    results.append({
+        "sample": gen_path,
+        "clip": clip_score,
+        "lpips": lpips_score,
+    })
+
+print(f"Evaluated {len(results)} samples without reloading weights.")
+
+```
+
+### In-Memory Tensor / PIL Stream Batching
+
+All Predictor classes support direct in-memory evaluation of `PIL.Image` objects, avoiding disk I/O entirely:
+
+```python
+from PIL import Image
+from image_evaluator import SSIMPredictor, PSNRPredictor
+
+ssim_pred = SSIMPredictor()
+psnr_pred = PSNRPredictor()
+
+# In-memory batch evaluation
+images = [Image.new("RGB", (128, 128), color=(i * 20, 100, 100)) for i in range(10)]
+reference = Image.new("RGB", (128, 128), color=(0, 100, 100))
+
+scores = []
+for img in images:
+    s = ssim_pred.evaluate_ssim(reference, img)
+    p = psnr_pred.evaluate_psnr(reference, img)
+    scores.append({"ssim": s, "psnr": p})
+
+```
+
+---
+
+## Modality Selection Decision Matrix
+
+- **Choose Form 1 (Single CLI)**: Only for ad-hoc terminal checks of single image files or debugging. **Never wrap in shell loops**.
+- **Choose Form 2 (CLI Directory)**: When evaluating existing dataset folders from Bash/Zsh scripts without writing Python code.
+- **Choose Form 3 (`evaluate(...)`)**: When running exploratory one-off comparisons in interactive Jupyter notebooks where code brevity matters more than throughput.
+- **Choose Form 4 (Predictor Reuse)**: For production evaluation services, benchmark sweeps, dataset scoring pipelines, and deep learning training validation loops.
+
+---
+
 # Aesthetic Score
 
 > LAION aesthetic predictor using OpenCLIP ViT-L-14 visual embeddings and linear projection

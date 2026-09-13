@@ -2,6 +2,8 @@
   "title": "技术文档",
   "pages": [
     "index",
+    "---使用指南---",
+    "guides",
     "---评测体系---",
     "no-reference",
     "text-image",

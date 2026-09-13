@@ -2,6 +2,8 @@
   "title": "Documentation",
   "pages": [
     "index",
+    "---Guides---",
+    "guides",
     "---Categories---",
     "no-reference",
     "text-image",

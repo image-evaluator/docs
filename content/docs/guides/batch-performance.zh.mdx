@@ -1,0 +1,111 @@
+---
+title: 批量评测性能最佳实践
+description: 四种调用形态的性能定量对比、模型常驻机制与高吞吐批量评测标准代码范式。
+---
+
+# 批量评测性能最佳实践
+
+在批量评测成百上千张生成图像时，选择恰当的调用方式对运行效率至关重要。深度学习评估模型（如 CLIP、LPIPS、Inception-v3 与 PickScore）具有较大的模型参数量，每次加载均涉及显存/内存分配与磁盘权重反序列化开销。不当的调用方式会引发极大的冷启动延迟。
+
+---
+
+## 四种调用形态性能定量对比
+
+| 调用形态 | 执行机制与代码路径 | 模型权重初始化次数 ($N$ 张图) | 进程开销 | 典型耗时特征 (以 CLIP 10 张图为例) | 工程建议 |
+| :--- | :--- | :---: | :--- | :---: | :---: |
+| **形态 1：Shell 循环多次调用 CLI**<br />`for f in *.png; do image-evaluator ...` | 每次循环均启动全新的系统子进程与 Python 解释器 | **$N$ 次** | 极高：每个进程启动耗时约 0.5s，模型权重加载耗时约 2.0s | **约 25 – 35 秒** | **反面模式** (严禁在 Shell 脚本中使用循环) |
+| **形态 2：原生 CLI 目录模式**<br />`image-evaluator --image folder/ ...` | 单一进程；CLI 解析目录并在内部仅加载一次权重，批量遍历处理 | **1 次** | 极低：仅一次解释器与权重加载，后续全速流转 | **约 2 – 3 秒** | **推荐范式** (适用于 Shell 脚本与 CI/CD) |
+| **形态 3：循环调用 Python `evaluate(...)`**<br />`for img in imgs: evaluate(...)` | 单一 Python 进程；`core.py` 内部每次无状态构造新 `Predictor` | **$N$ 次** | 中等：无子进程冷启动，但重复构造 `torch.nn.Module` 并重载权重 | **约 10 – 18 秒** | 仅限轻量单次探索实验 |
+| **形态 4：Python 原生 Predictor 实例复用**<br />`pred = ClipScorePredictor(); pred(...)` | 单一 Python 进程；在循环外部实例化 `Predictor`，循环内仅做推理 | **1 次** | 最优：零重复开销，模型完全驻留显存/内存，纯张量前向推理 | **约 1.5 – 2.0 秒** | **推荐范式** (适用于 Python 服务与数据流) |
+
+---
+
+## 高吞吐标准代码范式
+
+### 范式 1：原生 CLI 目录模式（形态 2）
+
+当通过 Bash/Zsh 自动化脚本或 CI/CD 流程运行评测时，始终直接将文件夹路径传递给 `--image` 与 `--reference`：
+
+<Tabs items={["文生图语义对齐", "成对保真度三剑客"]}>
+  <Tab value="文生图语义对齐">
+    ```bash
+    # 单次加载模型权重，批量评测目录下的所有图片对提示词的对齐度
+    image-evaluator --metrics clip \
+        --image ./generated_samples/ \
+        --prompt "a majestic mountain range at sunrise" \
+        --format json > results.json
+    ```
+  </Tab>
+  <Tab value="成对保真度三剑客">
+    ```bash
+    # 自动按同名主干配对文件（如 img_01.png 配对 img_01.png），并输出目录级均值
+    image-evaluator --metrics lpips ssim psnr \
+        --image ./generated_samples/ \
+        --reference ./ground_truth/ \
+        --format json > results.json
+    ```
+  </Tab>
+</Tabs>
+
+### 范式 2：Python 原生 Predictor 实例复用（形态 4）
+
+在 Python 服务、训练验证循环与自动化测试流中，在循环体外完成 `Predictor` 的一次性实例化，并在循环内复用其推理接口：
+
+```python
+from PIL import Image
+from image_evaluator import ClipScorePredictor, LPIPSPredictor
+
+# 步骤 1：在循环外实例化评测器（权重常驻显存/内存）
+clip_pred = ClipScorePredictor(device="cpu")
+lpips_pred = LPIPSPredictor(device="cpu")
+
+samples = [
+    ("gen_01.png", "ref_01.png", "a cybernetic wolf in neon city"),
+    ("gen_02.png", "ref_02.png", "an astronaut floating in deep space"),
+]
+
+# 步骤 2：在循环中直接进行前向计算，无任何模型重复重载开销
+results = []
+for gen_path, ref_path, prompt in samples:
+    clip_score = clip_pred.evaluate_clip_score(gen_path, prompt)
+    lpips_score = lpips_pred.evaluate_lpips(ref_path, gen_path)
+    
+    results.append({
+        "sample": gen_path,
+        "clip": clip_score,
+        "lpips": lpips_score,
+    })
+
+print(f"成功完成 {len(results)} 组样本评测，模型零重复加载。")
+```
+
+### 内存流直接批处理（无需保存为磁盘文件）
+
+所有导出的 `Predictor` 均原生支持 `PIL.Image` 对象直接计算，彻底消除磁盘写入与读取开销：
+
+```python
+from PIL import Image
+from image_evaluator import SSIMPredictor, PSNRPredictor
+
+ssim_pred = SSIMPredictor()
+psnr_pred = PSNRPredictor()
+
+# 内存数据流快速对比
+images = [Image.new("RGB", (128, 128), color=(i * 20, 100, 100)) for i in range(10)]
+reference = Image.new("RGB", (128, 128), color=(0, 100, 100))
+
+scores = []
+for img in images:
+    s = ssim_pred.evaluate_ssim(reference, img)
+    p = psnr_pred.evaluate_psnr(reference, img)
+    scores.append({"ssim": s, "psnr": p})
+```
+
+---
+
+## 调用形态选型决策建议
+
+- **选用形态 1 (单图 CLI)**：仅用于终端交互时对单个图片文件的即时快速诊断。**严禁用 Shell 脚本对其进行循环**。
+- **选用形态 2 (CLI 目录模式)**：适用于无需编写 Python 代码的 Shell 脚本编排、固定数据集打分或 CI/CD 自动化门禁。
+- **选用形态 3 (`evaluate(...)`)**：适用于 Jupyter Notebook 中的交互式探索或单次验证，以简洁性优先。
+- **选用形态 4 (Predictor 复用)**：适用于生产级评测服务、批量 Benchmark 跑分系统及深度学习训练过程中的在线验证指标计算。
