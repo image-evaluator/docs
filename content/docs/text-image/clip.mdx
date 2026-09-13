@@ -38,9 +38,10 @@ Values scale in $[0.0, 100.0]$, where higher scores indicate stronger semantic c
 
 ## Interpretation & Guidance
 
-- **Benchmark Scores**: Typical diffusion outputs (Stable Diffusion, Midjourney) on MS-COCO prompts score between $25.0$ and $33.0$. Scores above $30.0$ denote high semantic fidelity.
-- **Lexical Overlap Sensitivity**: CLIP evaluates high-level visual semantic features. Negations (e.g. *"a cat without hat"*) and spatial relations (*"cube on top of cylinder"*) remain known challenge areas.
-- **Combined Evaluation**: Pair with **PickScore** to measure both objective semantic alignment and subjective aesthetic preference.
+- **Benchmark Context & Task Specificity**: Reported ranges such as $25.0$ to $33.0$ reflect empirical statistics on specific benchmarks like MS-COCO short prompts; they should not be treated as universal pass/fail thresholds. Absolute scores vary substantially across prompt length, domain vocabulary, and dataset complexity.
+- **Scenario Boundaries & Image Editing Limitations**: CLIP similarity is designed for text-to-image prompt adherence. It is not suitable as a standalone metric for image editing instructions (e.g. *"make it oil painting"* or *"turn the apple green"*), where evaluating source preservation, local edits, and artifacts requires multi-dimensional pairwise evaluation (e.g. LPIPS, SSIM).
+- **Semantic Blindspots**: CLIP evaluates coarse global visual semantics. Negations (e.g. *"a cat without hat"*), fine-grained numerical counting, and compositional spatial relations (*"cube on top of cylinder"*) remain known structural blind spots.
+- **Combined Evaluation**: Pair with **PickScore** to measure both objective semantic alignment and subjective human preference.
 
 ---
 

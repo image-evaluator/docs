@@ -17,7 +17,7 @@ Fréchet Inception Distance (Heusel et al., NeurIPS 2017) measures the statistic
 | **CLI Metric** | `fid` |
 | **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
 | **Prohibited Options** | Single image file paths, `--prompt` |
-| **Sample Guidance** | $N \ge 2048$ samples recommended (biased estimator on small $N$) |
+| **Sample Guidance** | Larger $N$ reduces finite-sample bias (biased estimator on small $N$) |
 | **Output Scale** | Continuous scalar in `[0.0, +inf)` |
 | **Direction** | **Lower is better** (0.0 denotes identical feature distributions) |
 | **Feature Extractor** | Inception-v3 `pool3` (2048 dimensions, CleanFID protocol) |
@@ -45,17 +45,17 @@ FID requires directory inputs on both generated and reference sides. Filenames d
   <Folder name="real_dataset" defaultOpen>
     <File name="real_0001.png" />
     <File name="real_0002.png" />
-    <File name="... (>= 2048 recommended)" />
+    <File name="... (larger sample size reduces finite-sample bias)" />
   </Folder>
   <Folder name="generated_dataset" defaultOpen>
     <File name="synth_0001.png" />
     <File name="synth_0002.png" />
-    <File name="... (>= 2048 recommended)" />
+    <File name="... (larger sample size reduces finite-sample bias)" />
   </Folder>
 </Files>
 
 <Callout type="warn">
-  **Sample Size Bias Warning**: FID is a biased estimator. Evaluating with small sample sizes ($N < 2048$) systematically overestimates the true distribution distance and triggers a runtime warning. For sample sizes under 2000, consider using the unbiased **KID** metric instead.
+  **Sample Size Bias Warning**: FID is a biased estimator with continuous finite-sample bias that increases significantly on smaller sample sizes. Statistical reliability requires task-specific convergence or repeated trials; when sample size is constrained, consider pairing with the unbiased **KID** metric for auxiliary verification.
 </Callout>
 
 ---

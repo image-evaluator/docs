@@ -39,8 +39,9 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
 
 ## Interpretation & Guidance
 
-- **Benchmark Calibration**: Cosine distance below $0.40$ indicates high facial identity retention (sufficient for InstantID/PhotoMaker verification). Values between $0.40$ and $0.60$ represent borderline drift due to extreme lighting or novel angles. Values above $0.60$ indicate identity loss.
+- **Benchmark Calibration**: Lower cosine distance indicates higher facial feature similarity ($0.0$ denotes exact mathematical identity). There is no single universal cutoff threshold; decision boundaries depend on specific test benchmarks and desired False Acceptance Rates (FAR), requiring empirical calibration on the target task.
 - **Biometric Only**: ArcFace evaluates exclusively facial biometric geometry; it ignores background composition, garments, and lighting.
+
 - **Detection Prerequisite**: If the detector fails to locate a face in either image, the metric returns `None`.
 
 ---

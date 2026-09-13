@@ -38,8 +38,9 @@ The resulting scalar output ranges in $[1.0, 10.0]$, where higher values reflect
 
 ## Interpretation & Guidance
 
-- **Score Distribution**: On general web and natural photography benchmarks, typical photos score between $4.5$ and $6.0$. High-grade professional photography and curated artwork typically score above $6.5$.
+- **Relative Aesthetic Ranking**: Aesthetic Score is calibrated for relative visual quality ranking within the same artistic genre or visual domain rather than an absolute classification scale. Different visual domains (such as anime, abstract art, or product photography) exhibit systematic distribution shifts due to training dataset biases; never apply universal cutoff thresholds across disparate domains.
 - **No Ground-Truth Required**: Evaluates the image in isolation, ignoring semantic alignment with any prompt. Pair with **CLIP** or **PickScore** to assess prompt adherence.
+
 - **Protocol Consistency**: Compare aesthetic scores only between models evaluated under the identical OpenCLIP ViT-L-14 backbone weights.
 
 ---

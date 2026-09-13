@@ -37,8 +37,9 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 
 ## Interpretation & Guidance
 
-- **Diagnostic Thresholds**: Values below $0.15$ indicate near-lossless perceptual fidelity. Ranges between $0.15$ and $0.35$ represent moderate stylistic or texture drift. Values above $0.35$ signal heavy perceptual distortion or structural breakdown.
+- **Relative Comparison Metric**: LPIPS is a relative perceptual distance measure rather than an absolute pass/fail scale. Because human perceptual sensitivity varies significantly across visual domains, measurements must be evaluated relative to a baseline model under identical task settings and image resolutions. In tasks involving legitimate texture reorganization or artistic stylization (e.g. style transfer, creative editing), higher LPIPS values are expected and do not necessarily reflect structural or semantic breakdown.
 - **Fail-Fast Policy**: Pairwise dimensions must match exactly. The evaluator terminates with a `ValueError` rather than applying silent interpolation, ensuring no resampling blur corrupts measurement.
+
 - **Folder Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
 
 ---

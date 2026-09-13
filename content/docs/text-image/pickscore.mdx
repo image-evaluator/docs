@@ -32,14 +32,15 @@ PickScore projects image $I$ and prompt $T$ through fine-tuned CLIP ViT-H-14 enc
 s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}}(T)}{\|\Phi_{\text{image}}(I)\|_2 \|\Phi_{\text{text}}(T)\|_2}
 ```
 
-On empirical test sets, real outputs typically score in $[15.0, 25.0]$. Higher values indicate stronger alignment with human aesthetic choices.
+Outputs represent unnormalized calibrated logits, typically falling in $[15.0, 25.0]$ on standard diffusion benchmarks. Higher values indicate higher probability of human preference.
 
 ---
 
 ## Interpretation & Guidance
 
-- **Score Range**: Real outputs typically fall in $[15.0, 25.0]$. Scores above $21.0$ indicate strong visual appeal and high probability of being chosen by human judges. Scores below $18.0$ indicate artifact-laden or poorly aligned outputs.
+- **Probabilistic Ranking Nature**: PickScore is an unnormalized logit score calibrated via the Bradley-Terry preference framework. Absolute score thresholds do not represent universal pass/fail criteria; preference probabilities $P(A \succ B) = \sigma(\text{Score}_A - \text{Score}_B)$ are mathematically defined through pairwise score differences between candidate generations given the same prompt.
 - **Preference vs. Fidelity**: A technically distorted image may receive a low score even if it contains prompt keywords, because the model captures human aesthetic displeasure.
+
 - **Prompt Sensitivity**: PickScore requires clear descriptive text. Empty or whitespace-only prompts raise an explicit error.
 
 ---

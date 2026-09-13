@@ -17,7 +17,7 @@ Kernel Inception Distance (Bińkowski et al., ICLR 2018) is an unbiased metric f
 | **CLI Metric** | `kid` |
 | **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
 | **Prohibited Options** | Single image file paths, `--prompt` |
-| **Small Sample Robust** | Unbiased on subsets of $100 - 1000$ samples |
+| **Finite Sample Robustness** | Unbiased across all sample sizes ($m \ge 2$), though variance increases on smaller sets |
 | **Output Scale** | U-statistic scalar, typically $[-0.01, 0.10]$ (reported as $\text{Mean} \pm \text{Std}$) |
 | **Direction** | **Lower is better** |
 | **Kernel Type** | Cubic polynomial $k(x, y) = (x^T y / d + 1)^3$ on Inception features |
@@ -44,16 +44,16 @@ KID operates over directories of images. Like FID, filenames do not need to matc
 <Files>
   <Folder name="reference_dir" defaultOpen>
     <File name="real_01.png" />
-    <File name="... (100 - 1000 samples)" />
+    <File name="... (unbiased across sample sizes)" />
   </Folder>
   <Folder name="generated_dir" defaultOpen>
     <File name="gen_01.png" />
-    <File name="... (100 - 1000 samples)" />
+    <File name="... (unbiased across sample sizes)" />
   </Folder>
 </Files>
 
 <Callout type="info">
-  **Small-Sample Unbiasedness & Negative Values**: Because the U-statistic is an unbiased estimator of squared MMD, sample variance around zero can yield small negative values (e.g. `-0.0004`). These reflect unbiased statistical variance and must **never** be manually clamped to zero.
+  **Unbiasedness vs. Sampling Variance & Negative Values**: Because the U-statistic is a strictly unbiased estimator of squared MMD, its expected value equals the true population distance for any sample size $m \ge 2$. However, unbiasedness does not imply zero variance: on smaller sample batches, sampling variance can be substantial across different subsets. Furthermore, when distributions are very close, variance around zero can yield small negative values (e.g. `-0.0004`), which reflect normal statistical fluctuations and must **never** be clamped to zero.
 </Callout>
 
 ---

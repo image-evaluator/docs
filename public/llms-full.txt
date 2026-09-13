@@ -181,8 +181,9 @@ The resulting scalar output ranges in $[1.0, 10.0]$, where higher values reflect
 
 ## Interpretation & Guidance
 
-- **Score Distribution**: On general web and natural photography benchmarks, typical photos score between $4.5$ and $6.0$. High-grade professional photography and curated artwork typically score above $6.5$.
+- **Relative Aesthetic Ranking**: Aesthetic Score is calibrated for relative visual quality ranking within the same artistic genre or visual domain rather than an absolute classification scale. Different visual domains (such as anime, abstract art, or product photography) exhibit systematic distribution shifts due to training dataset biases; never apply universal cutoff thresholds across disparate domains.
 - **No Ground-Truth Required**: Evaluates the image in isolation, ignoring semantic alignment with any prompt. Pair with **CLIP** or **PickScore** to assess prompt adherence.
+
 - **Protocol Consistency**: Compare aesthetic scores only between models evaluated under the identical OpenCLIP ViT-L-14 backbone weights.
 
 ---
@@ -273,9 +274,10 @@ Values scale in $[0.0, 100.0]$, where higher scores indicate stronger semantic c
 
 ## Interpretation & Guidance
 
-- **Benchmark Scores**: Typical diffusion outputs (Stable Diffusion, Midjourney) on MS-COCO prompts score between $25.0$ and $33.0$. Scores above $30.0$ denote high semantic fidelity.
-- **Lexical Overlap Sensitivity**: CLIP evaluates high-level visual semantic features. Negations (e.g. *"a cat without hat"*) and spatial relations (*"cube on top of cylinder"*) remain known challenge areas.
-- **Combined Evaluation**: Pair with **PickScore** to measure both objective semantic alignment and subjective aesthetic preference.
+- **Benchmark Context & Task Specificity**: Reported ranges such as $25.0$ to $33.0$ reflect empirical statistics on specific benchmarks like MS-COCO short prompts; they should not be treated as universal pass/fail thresholds. Absolute scores vary substantially across prompt length, domain vocabulary, and dataset complexity.
+- **Scenario Boundaries & Image Editing Limitations**: CLIP similarity is designed for text-to-image prompt adherence. It is not suitable as a standalone metric for image editing instructions (e.g. *"make it oil painting"* or *"turn the apple green"*), where evaluating source preservation, local edits, and artifacts requires multi-dimensional pairwise evaluation (e.g. LPIPS, SSIM).
+- **Semantic Blindspots**: CLIP evaluates coarse global visual semantics. Negations (e.g. *"a cat without hat"*), fine-grained numerical counting, and compositional spatial relations (*"cube on top of cylinder"*) remain known structural blind spots.
+- **Combined Evaluation**: Pair with **PickScore** to measure both objective semantic alignment and subjective human preference.
 
 ---
 
@@ -369,14 +371,15 @@ s_{\text{pick}} = 100 \cdot \frac{\Phi_{\text{image}}(I) \cdot \Phi_{\text{text}
 
 ```
 
-On empirical test sets, real outputs typically score in $[15.0, 25.0]$. Higher values indicate stronger alignment with human aesthetic choices.
+Outputs represent unnormalized calibrated logits, typically falling in $[15.0, 25.0]$ on standard diffusion benchmarks. Higher values indicate higher probability of human preference.
 
 ---
 
 ## Interpretation & Guidance
 
-- **Score Range**: Real outputs typically fall in $[15.0, 25.0]$. Scores above $21.0$ indicate strong visual appeal and high probability of being chosen by human judges. Scores below $18.0$ indicate artifact-laden or poorly aligned outputs.
+- **Probabilistic Ranking Nature**: PickScore is an unnormalized logit score calibrated via the Bradley-Terry preference framework. Absolute score thresholds do not represent universal pass/fail criteria; preference probabilities $P(A \succ B) = \sigma(\text{Score}_A - \text{Score}_B)$ are mathematically defined through pairwise score differences between candidate generations given the same prompt.
 - **Preference vs. Fidelity**: A technically distorted image may receive a low score even if it contains prompt keywords, because the model captures human aesthetic displeasure.
+
 - **Prompt Sensitivity**: PickScore requires clear descriptive text. Empty or whitespace-only prompts raise an explicit error.
 
 ---
@@ -476,8 +479,9 @@ d(x, x_0) = \sum_l \frac{1}{H_l W_l} \sum_{h, w} \left\| w_l \odot \left( \hat{y
 
 ## Interpretation & Guidance
 
-- **Diagnostic Thresholds**: Values below $0.15$ indicate near-lossless perceptual fidelity. Ranges between $0.15$ and $0.35$ represent moderate stylistic or texture drift. Values above $0.35$ signal heavy perceptual distortion or structural breakdown.
+- **Relative Comparison Metric**: LPIPS is a relative perceptual distance measure rather than an absolute pass/fail scale. Because human perceptual sensitivity varies significantly across visual domains, measurements must be evaluated relative to a baseline model under identical task settings and image resolutions. In tasks involving legitimate texture reorganization or artistic stylization (e.g. style transfer, creative editing), higher LPIPS values are expected and do not necessarily reflect structural or semantic breakdown.
 - **Fail-Fast Policy**: Pairwise dimensions must match exactly. The evaluator terminates with a `ValueError` rather than applying silent interpolation, ensuring no resampling blur corrupts measurement.
+
 - **Folder Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
 
 ---
@@ -585,8 +589,9 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
 
 ## Interpretation & Guidance
 
-- **Benchmark Interpretation**: Scores above $0.85$ indicate strong structural preservation. Values in $0.65 - 0.85$ represent lossy compression artifacts or slight edge blurring. Values below $0.65$ denote severe structural tear or deformation.
+- **Relative Structural Comparison**: SSIM measures local structural covariance across luminance and contrast components. Because the magnitude of degradation depends heavily on image content complexity and high-frequency texture density, universal cutoff thresholds do not exist. Use SSIM strictly for relative degradation comparison against baselines under identical resolution and task conditions.
 - **Fail-Fast Policy**: SSIM requires image dimensions to be at least $11 \times 11$ pixels. Inputs smaller than 11 pixels terminate with an explicit `ValueError`.
+
 - **Structural Focus**: Excellent for detecting geometric displacement and blur; complementary to LPIPS deep perceptual evaluation.
 
 ---
@@ -692,7 +697,7 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
 
 ## Interpretation & Guidance
 
-- **Decibel Benchmarks**: PSNR above $35\text{ dB}$ represents excellent reconstruction with imperceptible pixel noise. Ranges between $25 - 35\text{ dB}$ reflect typical lossy codec compression (JPEG, WebP). Values below $20\text{ dB}$ indicate heavy noise or severe distortion.
+- **Domain Applicability & Codec Heuristics**: While $30 - 40\text{ dB}$ serves as a conventional rule of thumb in traditional image compression codecs under strict geometric alignment, it must not be treated as a universal pass/fail threshold for generative models. In generative reconstruction, sub-pixel shifts, subtle high-frequency stochastic synthesis, or minor global color casts can cause PSNR to drop below $20\text{ dB}$ even when visual perception remains pristine.
 - **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. A uniform color tint or a 1-pixel shift drastically penalizes PSNR despite high human visual acceptability. Pair with **LPIPS** for balanced perceptual assessment.
 
 ---
@@ -793,8 +798,9 @@ Scale ranges in $[0.0, 2.0]$, where lower values indicate stronger facial resemb
 
 ## Interpretation & Guidance
 
-- **Benchmark Calibration**: Cosine distance below $0.40$ indicates high facial identity retention (sufficient for InstantID/PhotoMaker verification). Values between $0.40$ and $0.60$ represent borderline drift due to extreme lighting or novel angles. Values above $0.60$ indicate identity loss.
+- **Benchmark Calibration**: Lower cosine distance indicates higher facial feature similarity ($0.0$ denotes exact mathematical identity). There is no single universal cutoff threshold; decision boundaries depend on specific test benchmarks and desired False Acceptance Rates (FAR), requiring empirical calibration on the target task.
 - **Biometric Only**: ArcFace evaluates exclusively facial biometric geometry; it ignores background composition, garments, and lighting.
+
 - **Detection Prerequisite**: If the detector fails to locate a face in either image, the metric returns `None`.
 
 ---
@@ -872,7 +878,7 @@ Fréchet Inception Distance (Heusel et al., NeurIPS 2017) measures the statistic
 | **CLI Metric** | `fid` |
 | **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
 | **Prohibited Options** | Single image file paths, `--prompt` |
-| **Sample Guidance** | $N \ge 2048$ samples recommended (biased estimator on small $N$) |
+| **Sample Guidance** | Larger $N$ reduces finite-sample bias (biased estimator on small $N$) |
 | **Output Scale** | Continuous scalar in `[0.0, +inf)` |
 | **Direction** | **Lower is better** (0.0 denotes identical feature distributions) |
 | **Feature Extractor** | Inception-v3 `pool3` (2048 dimensions, CleanFID protocol) |
@@ -897,11 +903,7 @@ Lower values indicate closer fidelity and diversity to the ground-truth distribu
 
 FID requires directory inputs on both generated and reference sides. Filenames do not need to match and sample counts may differ ($N_{\text{ref}} \neq N_{\text{gen}}$):
 
-    = 2048 recommended)" />
-
-    = 2048 recommended)" />
-
-  **Sample Size Bias Warning**: FID is a biased estimator. Evaluating with small sample sizes ($N < 2048$) systematically overestimates the true distribution distance and triggers a runtime warning. For sample sizes under 2000, consider using the unbiased **KID** metric instead.
+  **Sample Size Bias Warning**: FID is a biased estimator with continuous finite-sample bias that increases significantly on smaller sample sizes. Statistical reliability requires task-specific convergence or repeated trials; when sample size is constrained, consider pairing with the unbiased **KID** metric for auxiliary verification.
 
 ---
 
@@ -956,7 +958,7 @@ Kernel Inception Distance (Bińkowski et al., ICLR 2018) is an unbiased metric f
 | **CLI Metric** | `kid` |
 | **Input Options** | `--image <dir>`, `--reference <dir>` (both must be directories) |
 | **Prohibited Options** | Single image file paths, `--prompt` |
-| **Small Sample Robust** | Unbiased on subsets of $100 - 1000$ samples |
+| **Finite Sample Robustness** | Unbiased across all sample sizes ($m \ge 2$), though variance increases on smaller sets |
 | **Output Scale** | U-statistic scalar, typically $[-0.01, 0.10]$ (reported as $\text{Mean} \pm \text{Std}$) |
 | **Direction** | **Lower is better** |
 | **Kernel Type** | Cubic polynomial $k(x, y) = (x^T y / d + 1)^3$ on Inception features |
@@ -981,7 +983,7 @@ The evaluator returns the mean and standard deviation: $\text{Mean} \pm \text{St
 
 KID operates over directories of images. Like FID, filenames do not need to match and counts can differ:
 
-  **Small-Sample Unbiasedness & Negative Values**: Because the U-statistic is an unbiased estimator of squared MMD, sample variance around zero can yield small negative values (e.g. `-0.0004`). These reflect unbiased statistical variance and must **never** be manually clamped to zero.
+  **Unbiasedness vs. Sampling Variance & Negative Values**: Because the U-statistic is a strictly unbiased estimator of squared MMD, its expected value equals the true population distance for any sample size $m \ge 2$. However, unbiasedness does not imply zero variance: on smaller sample batches, sampling variance can be substantial across different subsets. Furthermore, when distributions are very close, variance around zero can yield small negative values (e.g. `-0.0004`), which reflect normal statistical fluctuations and must **never** be clamped to zero.
 
 ---
 

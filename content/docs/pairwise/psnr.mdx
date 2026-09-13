@@ -43,8 +43,9 @@ The logarithmic ratio over peak dynamic range $\text{MAX}_I = 255.0$ is:
 
 ## Interpretation & Guidance
 
-- **Decibel Benchmarks**: PSNR above $35\text{ dB}$ represents excellent reconstruction with imperceptible pixel noise. Ranges between $25 - 35\text{ dB}$ reflect typical lossy codec compression (JPEG, WebP). Values below $20\text{ dB}$ indicate heavy noise or severe distortion.
+- **Domain Applicability & Codec Heuristics**: While $30 - 40\text{ dB}$ serves as a conventional rule of thumb in traditional image compression codecs under strict geometric alignment, it must not be treated as a universal pass/fail threshold for generative models. In generative reconstruction, sub-pixel shifts, subtle high-frequency stochastic synthesis, or minor global color casts can cause PSNR to drop below $20\text{ dB}$ even when visual perception remains pristine.
 - **Sensitivity Trade-off**: PSNR computes pixel-wise absolute difference. A uniform color tint or a 1-pixel shift drastically penalizes PSNR despite high human visual acceptability. Pair with **LPIPS** for balanced perceptual assessment.
+
 
 ---
 

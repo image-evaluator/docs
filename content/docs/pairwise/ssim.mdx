@@ -45,8 +45,9 @@ where $C_1 = (K_1 L)^2$ and $C_2 = (K_2 L)^2$ prevent numerical instability ($K_
 
 ## Interpretation & Guidance
 
-- **Benchmark Interpretation**: Scores above $0.85$ indicate strong structural preservation. Values in $0.65 - 0.85$ represent lossy compression artifacts or slight edge blurring. Values below $0.65$ denote severe structural tear or deformation.
+- **Relative Structural Comparison**: SSIM measures local structural covariance across luminance and contrast components. Because the magnitude of degradation depends heavily on image content complexity and high-frequency texture density, universal cutoff thresholds do not exist. Use SSIM strictly for relative degradation comparison against baselines under identical resolution and task conditions.
 - **Fail-Fast Policy**: SSIM requires image dimensions to be at least $11 \times 11$ pixels. Inputs smaller than 11 pixels terminate with an explicit `ValueError`.
+
 - **Structural Focus**: Excellent for detecting geometric displacement and blur; complementary to LPIPS deep perceptual evaluation.
 
 ---
