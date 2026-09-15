@@ -2,6 +2,7 @@
   "title": "Text-to-Image Alignment",
   "pages": [
     "clip",
+    "directional-clip",
     "pickscore"
   ]
 }

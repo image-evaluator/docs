@@ -554,6 +554,104 @@ Evaluate all images in a folder against a single benchmark prompt:
 
 ---
 
+# Directional CLIP
+
+> Relative semantic direction alignment for image editing using CLIP embedding differences
+
+# Directional CLIP (ΔCLIP)
+
+Directional CLIP (Gal et al., StyleGAN-NADA SIGGRAPH 2022; Brooks et al., InstructPix2Pix CVPR 2023) evaluates whether an edit moved an image in the semantic direction specified by the prompt change, overcoming the limitation of standard CLIP in image editing scenarios.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Image Editing Semantic Direction Alignment |
+| **CLI Metric** | `directional_clip` |
+| **Input Options** | `--image <file>`, `--reference <file>`, `--prompt "<target_text>"`, `--prompt-src "<src_text>"` |
+| **Output Scale** | Continuous scalar in `[-1.0, 1.0]` |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | OpenAI CLIP `clip-vit-base-patch32` |
+| **Upstream Source** | [StyleGAN-NADA (SIGGRAPH 2022)](https://arxiv.org/abs/2108.00946) |
+
+---
+
+## Mathematical Formulation
+
+Given a source image $I_{\text{src}}$, an edited image $I_{\text{edit}}$, a source prompt $T_{\text{src}}$, and an edit target prompt $T_{\text{target}}$, the directional vectors in CLIP embedding space are:
+
+```math
+\Delta I = \frac{\mathbf{E}_I(I_{\text{edit}}) - \mathbf{E}_I(I_{\text{src}})}{\|\mathbf{E}_I(I_{\text{edit}}) - \mathbf{E}_I(I_{\text{src}})\|_2}
+
+```
+
+```math
+\Delta T = \frac{\mathbf{E}_T(T_{\text{target}}) - \mathbf{E}_T(T_{\text{src}})}{\|\mathbf{E}_T(T_{\text{target}}) - \mathbf{E}_T(T_{\text{src}})\|_2}
+
+```
+
+The directional similarity score is their cosine inner product:
+
+```math
+\text{DirectionalScore} = \Delta I \cdot \Delta T
+
+```
+
+Values scale in $[-1.0, 1.0]$. A positive value indicates that the image change aligns with the text instruction.
+
+---
+
+## Four-Input Contract
+
+Evaluating image editing requires four explicit inputs:
+1. `image_src`: Source image before editing (`--reference` in CLI).
+2. `image_edit`: Output image after editing (`--image` in CLI).
+3. `prompt_src`: Text description of the source image (`--prompt-src` in CLI).
+4. `prompt_target`: Text description of the intended edit target (`--prompt` in CLI).
+
+---
+
+## Interpretation & Guidance
+
+- **Relative Direction over Absolute Similarity**: Unlike standard CLIP, Directional CLIP isolates the *delta* of the transformation. A high score means the edit moved toward the target concept regardless of background style.
+- **Numerical Safeguards**: Built-in near-zero delta protection ($\epsilon=10^{-6}$) returns `0.0` when the image or text difference vector is degenerate, preventing NaN values.
+- **Multi-metric Synergy**: Always pair with pairwise fidelity metrics (LPIPS or SSIM) to verify that unedited regions and structural identity remain preserved while the target attributes change.
+
+---
+
+## Usage Examples
+
+### Single Image Edit Evaluation
+
+Evaluate directional consistency for an edited image:
+
+    ```bash
+    image-evaluator --metrics directional_clip \
+        --reference path/to/source.png \
+        --image path/to/edited.png \
+        --prompt-src "a blue sports car" \
+        --prompt "a red sports car"
+
+    ```
+
+    ```python
+    from image_evaluator import DirectionalClipPredictor
+
+    predictor = DirectionalClipPredictor()
+    score = predictor.evaluate_directional_clip(
+        image_src="path/to/source.png",
+        image_edit="path/to/edited.png",
+        prompt_src="a blue sports car",
+        prompt_target="a red sports car",
+    )
+    print(f"Directional CLIP: {score:.4f}")
+
+    ```
+
+---
+
 # PickScore
 
 > Fine-tuned CLIP ViT-H-14 human preference reward scoring trained on the Pick-a-Pic benchmark

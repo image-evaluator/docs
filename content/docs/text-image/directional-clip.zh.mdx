@@ -1,0 +1,100 @@
+---
+title: Directional CLIP (定向编辑相似度)
+description: 基于 CLIP 差分向量余弦相似度的图像编辑相对语义变化方向评测
+---
+
+# Directional CLIP (定向编辑相似度)
+
+Directional CLIP (Gal et al., StyleGAN-NADA SIGGRAPH 2022; Brooks et al., InstructPix2Pix CVPR 2023) 用于评估图像编辑操作是否准确遵循了提示词指令的变化方向，有效解决了传统单图 CLIP 在图像编辑任务中无法度量“相对变化”的根本局限。
+
+---
+
+## 核心规格
+
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 图像编辑相对语义方向对齐 (Image Editing Direction Alignment) |
+| **命令行参数** | `--metrics directional_clip` |
+| **输入要求** | `--image <编辑图>`, `--reference <原图>`, `--prompt "<目标提示词>"`, `--prompt-src "<原提示词>"` |
+| **标度范围** | 连续浮点数 `[-1.0, 1.0]` |
+| **取值方向** | **数值越高越优** |
+| **骨干网络** | OpenAI CLIP `clip-vit-base-patch32` |
+| **权威源** | [StyleGAN-NADA (SIGGRAPH 2022)](https://arxiv.org/abs/2108.00946) |
+
+---
+
+## 理论公式推导
+
+给定原图 $I_{\text{src}}$、编辑后图 $I_{\text{edit}}$、原提示词 $T_{\text{src}}$ 以及目标提示词 $T_{\text{target}}$，在 CLIP 联合多模态特征空间中计算各自的差分变化向量：
+
+```math
+\Delta I = \frac{\mathbf{E}_I(I_{\text{edit}}) - \mathbf{E}_I(I_{\text{src}})}{\|\mathbf{E}_I(I_{\text{edit}}) - \mathbf{E}_I(I_{\text{src}})\|_2}
+```
+
+```math
+\Delta T = \frac{\mathbf{E}_T(T_{\text{target}}) - \mathbf{E}_T(T_{\text{src}})}{\|\mathbf{E}_T(T_{\text{target}}) - \mathbf{E}_T(T_{\text{src}})\|_2}
+```
+
+Directional CLIP 评测分值为两个变化方向向量的内积（余弦相似度）：
+
+```math
+\text{DirectionalScore} = \Delta I \cdot \Delta T
+```
+
+数值标度在 $[-1.0, 1.0]$ 之间。正值表示图像编辑变化方向与提示词变化方向一致，越接近 $+1.0$ 表示编辑指令遵从度越高。
+
+---
+
+## 四输入契约规范
+
+评估图像编辑必须明确传入四项输入：
+1. `image_src`：编辑前的原始参考图像（CLI 对应 `--reference`）；
+2. `image_edit`：编辑后生成的输出图像（CLI 对应 `--image`）；
+3. `prompt_src`：原始参考图像的文本描述（CLI 对应 `--prompt-src`）；
+4. `prompt_target`：目标编辑效果的文本描述（CLI 对应 `--prompt`）。
+
+---
+
+## 评测建议与实践指南
+
+- **相对方向优于绝对匹配**：与传统 CLIP 仅度量绝对静态相似度不同，Directional CLIP 专注于隔离提取“编辑变化增量”，能有效排除背景画风或主体固有特征的干扰。
+- **退化差分数值安全防护**：内置近零变化向量保护机制（$\epsilon=10^{-6}$），在图像或文本无实质变化时自动返回 `0.0`，彻底避免除零产生的 NaN 异常。
+- **多维指标协同评测**：建议与成对保真度指标（LPIPS 或 SSIM）协同使用，既验证目标属性的编辑幅度，又保证非编辑区域背景与主体结构不发生崩坏。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单张图像编辑效果评估
+
+    计算单张图片相对于原图与提示词的变化一致性得分：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics directional_clip \
+            --reference path/to/source.png \
+            --image path/to/edited.png \
+            --prompt-src "a blue sports car" \
+            --prompt "a red sports car"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator import DirectionalClipPredictor
+
+        predictor = DirectionalClipPredictor()
+        score = predictor.evaluate_directional_clip(
+            image_src="path/to/source.png",
+            image_edit="path/to/edited.png",
+            prompt_src="a blue sports car",
+            prompt_target="a red sports car",
+        )
+        print(f"Directional CLIP 得分: {score:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

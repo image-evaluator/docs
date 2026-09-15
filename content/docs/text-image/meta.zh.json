@@ -2,6 +2,7 @@
   "title": "图文对齐与偏好",
   "pages": [
     "clip",
+    "directional-clip",
     "pickscore"
   ]
 }
