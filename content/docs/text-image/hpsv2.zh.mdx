@@ -1,0 +1,113 @@
+---
+title: 人类审美偏好分
+description: 基于大规模真实人类偏好数据集微调的双塔审美与图文一致性度量
+---
+
+# 人类审美偏好分
+
+人类审美偏好分度量文生图模型生成的图像在美学质感、构图比例与提示词遵循度上与人类主观偏好的贴合程度。该指标基于大规模真实人类偏好对齐数据集进行微调，通过联合视觉与文本双塔特征投影，有效规避了传统未对齐模型易受色彩对比度欺骗的局限。
+
+---
+
+## 核心规格
+
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 人类偏好与图文对齐 |
+| **命令行参数** | `--metrics hpsv2` |
+| **输入要求** | `--image <路径>`, `--prompt <文本提示词>` (两项皆必填) |
+| **禁止参数** | `--reference` (提示词生成评测禁止传入参考原图) |
+| **标度范围** | 标量连续余弦值 `[-1.0, 1.0]` (典型区间位于 `[0.20, 0.35]`) |
+| **取值方向** | **数值越高越优** |
+| **模型主干** | 微调视觉语言双塔大模型单一权威权重 |
+| **可选依赖** | `pip install 'image-evaluator[preference]'` |
+| **权威源** | [Wu 等, 2023](https://arxiv.org/abs/2306.09341) |
+
+---
+
+## 理论公式推导
+
+给定输入图像 $I$ 与文本描述 $T$，模型分别通过图像与文本编码器提取经归一化的高维特征向量并计算点积：
+
+```math
+S_{\text{HPS}}(I, T) = \frac{\mathbf{v}(I)}{\|\mathbf{v}(I)\|_2} \cdot \frac{\mathbf{t}(T)}{\|\mathbf{t}(T)\|_2}
+```
+
+其中 $\mathbf{v}(I) \in \mathbb{R}^{1024}$ 与 $\mathbf{t}(T) \in \mathbb{R}^{1024}$ 分别表示视觉与文本的特征表征向量。
+
+---
+
+## 非等价性界定与数值差异
+
+该指标与代码库中其他偏好与奖励模型不可混为一谈：
+- **人类审美偏好分**：直接输出原始余弦点积相似度，数值受限于几何角度约束，典型区间为 $0.20 \sim 0.35$。
+- **选择概率模型**：采用带温度系数的分类输出，分值通常分布于 $[15.0, 25.0]$。
+- **多模态标量奖励**：基于交叉注意力与全连接层回归，输出有正有负的实数标量奖励分值（均值约为 0）。
+
+---
+
+## 模型下载披露门禁
+
+该微调权重体积约 1.84 GiB。依据治理规则，本地未命中缓存时必须通过命令行参数 `--allow-download` 或代码参数 `allow_download=True` 进行显式授权，严禁静默下载。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单张生成图像人类偏好度评估
+
+    评估生成图与对应提示词的人类偏好分值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics hpsv2 \
+            --image path/to/generated.png \
+            --prompt "暴风雪高山上的雪豹"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator import evaluate
+
+        scores = evaluate(
+            metrics="hpsv2",
+            image="path/to/generated.png",
+            prompt="暴风雪高山上的雪豹",
+        )
+        print("偏好分值:", scores["hpsv2"])
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 文件夹批量评估
+
+    对目录下全部候选样本计算算术平均分值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics hpsv2 \
+            --image path/to/generated_folder/ \
+            --prompt "带有玻璃幕墙的现代建筑别墅"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator import evaluate_detailed
+
+        result = evaluate_detailed(
+            metrics=["hpsv2"],
+            image="path/to/generated_folder/",
+            prompt="带有玻璃幕墙的现代建筑别墅",
+        )
+        print(f"平均偏好分: {result['hpsv2']:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

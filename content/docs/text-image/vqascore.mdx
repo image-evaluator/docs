@@ -1,0 +1,126 @@
+---
+title: VQAScore (Visual Question Answering Alignment)
+description: Compositionality and text-image alignment evaluation via visual question answering posterior probability
+---
+
+# VQAScore (Visual Question Answering Alignment)
+
+VQAScore by Lin et al. (ECCV 2024) evaluates generative text-to-image synthesis by casting alignment evaluation as visual question answering (VQA). Conventional dual-tower embeddings (such as CLIPScore) project whole scenes and prompts into isolated feature vectors, frequently suffering from "bag-of-words" degradation—ignoring grammatical negation, relative spatial relationships, counting, and multi-attribute binding.
+
+VQAScore overcomes this fundamental limitation by scoring generation through the posterior generation probability that a vision-language model answers **"Yes"** to whether the image depicts the prompt.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Visual Question Answering Alignment & Compositionality |
+| **CLI Metric** | `vqascore` |
+| **Input Options** | `--image <path>`, `--prompt <string>` (both required) |
+| **Prohibited Options** | `--reference` (not applicable for text-to-image prompt evaluation) |
+| **Output Scale** | Continuous probability scalar strictly bounded in `[0.0, 1.0]` |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | Fine-tuned CLIP-FlanT5-XL (3B) + CLIP-ViT-L/14-336 vision tower |
+| **Install Extra** | `pip install 'image-evaluator[vqa]'` |
+| **Upstream Source** | [Lin et al., ECCV 2024 (VQAScore)](https://arxiv.org/abs/2404.01291) |
+
+---
+
+## Mathematical Formulation
+
+The evaluation prompt is constructed using the standardized bidirectional query template:
+
+```math
+\text{Question: Does this figure show "{prompt}"? Please answer yes or no.}
+```
+
+```math
+\text{Target Answer: Yes}
+```
+
+The evaluation score is computed directly from the sequence cross-entropy loss over the target tokens:
+
+```math
+\text{VQAScore}(I, T) = P(\text{"Yes"} \mid I, T) = \exp\left(-\mathcal{L}_{\text{CE}}(\hat{\mathbf{y}}, \mathbf{y}_{\text{"Yes"}})\right)
+```
+
+This yields a continuous probability strictly within $[0.0, 1.0]$, where higher values indicate stronger text-image alignment and compositional fidelity.
+
+---
+
+## Non-Equivalence Notice: Calibrated Posterior Probability
+
+`vqascore` is fundamentally distinct from dual-tower cosine similarities and regression rewards:
+- **Calibrated Posterior Probability**: Bounded strictly in $[0.0, 1.0]$, representing model likelihood of positive assertion.
+- **Compositional Superiority**: Sensitive to spatial prepositions (*left of*, *inside*), counts (*three apples*), and color-object binding (*red cube and blue sphere*).
+- **Aspect Ratio Preservation**: `image-evaluator` applies `expand2square` padding with the CLIP preprocessor image mean color prior to resizing, eliminating distortive geometric stretching.
+
+---
+
+## Hardware & Storage Requirements
+
+- Total download size is $\approx 7.49\text{ GiB}$ across model snapshots.
+- Memory footprint in CPU `bfloat16` mode is $\approx 1.83\text{ GiB}$, permitting execution on standard 16GB developer workstations.
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Image Evaluation
+
+    Evaluate compositional alignment for a complex visual prompt:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics vqascore \
+            --image path/to/generated.png \
+            --prompt "a red sports car parked in front of a modern glass building"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate
+
+        scores = evaluate(
+            metrics="vqascore",
+            image="path/to/generated.png",
+            prompt="a red sports car parked in front of a modern glass building",
+        )
+        print("VQAScore Probability:", scores["vqascore"])
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Directory Batch Evaluation
+
+    Evaluate arithmetic mean alignment across multiple candidate generations:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics vqascore \
+            --image path/to/generated_folder/ \
+            --prompt "a silver cup placed on top of a stack of books"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate_detailed
+
+        result = evaluate_detailed(
+            metrics=["vqascore"],
+            image="path/to/generated_folder/",
+            prompt="a silver cup placed on top of a stack of books",
+        )
+        print(f"Mean VQAScore: {result['vqascore']:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

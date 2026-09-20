@@ -1,0 +1,111 @@
+---
+title: ImageReward (Human Preference Reward)
+description: Cross-attention multimodal Transformer with 5-layer MLP scalar reward modeling
+---
+
+# ImageReward (Human Preference Reward)
+
+ImageReward by Xu et al. (NeurIPS 2023) evaluates text-to-image synthesis using a multimodal cross-attention reward model. Unlike dual-tower cosine similarity architectures, ImageReward allows text tokens to deeply cross-attend to visual patch representations, capturing intricate object-attribute bindings and fine-grained visual defects before mapping them to a standardized continuous scalar reward score.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Human Preference & Scalar Reward Modeling |
+| **CLI Metric** | `image_reward` |
+| **Input Options** | `--image <path>`, `--prompt <string>` (both required) |
+| **Prohibited Options** | `--reference` (not applicable for text-to-image prompt evaluation) |
+| **Output Scale** | Standardized continuous scalar in $\mathbb{R}$ (typical range `[-2.5, 2.5]`, mean $\approx 0$) |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | BLIP ViT-L vision encoder + Cross-Attention Text Encoder + 5-layer MLP head |
+| **Install Extra** | `pip install 'image-evaluator[preference]'` |
+| **Upstream Source** | [Xu et al., NeurIPS 2023 (ImageReward)](https://arxiv.org/abs/2304.05977) |
+
+---
+
+## Mathematical Formulation
+
+ImageReward extracts visual patch tokens $\mathbf{z}_{\text{image}}$ from the ViT-L/16 backbone and fuses them with prompt tokens $\mathbf{z}_{\text{text}}$ via bidirectional cross-attention layers. The multimodal representation is projected to raw reward scalar $r$ via a 5-layer perceptron and standardized using training corpus statistics:
+
+```math
+r = \text{MLP}\left( \text{CrossAttention}(\mathbf{z}_{\text{text}}, \mathbf{z}_{\text{image}}) \right)
+```
+
+```math
+S_{\text{ImageReward}}(I, T) = \frac{r - \mu}{\sigma}
+```
+
+where $\mu \approx 0.16717$ and $\sigma \approx 1.03334$.
+
+---
+
+## Non-Equivalence Notice: Standardized Scalar Reward
+
+`image_reward` represents a continuous real-valued reward scalar:
+- **Never describe as similarity or probability**: An ImageReward score of $0.5$ does not denote "50% confidence" or "0.5 cosine angle". It indicates a positive reward $0.5$ standard deviations above average human preference.
+- **Negative Values**: Scores below zero indicate image quality or text alignment falling below the empirical median of the training benchmark.
+- **Architectural Independence**: `image-evaluator` natively implements the model using standard `transformers` and `timm`, completely removing upstream legacy dependencies (`fairscale`, `datasets`, `diffusers`).
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Image Evaluation
+
+    Compute scalar human preference reward for an individual sample:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics image_reward \
+            --image path/to/generated.png \
+            --prompt "an oil painting of an autumn cottage by a river"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate
+
+        scores = evaluate(
+            metrics="image_reward",
+            image="path/to/generated.png",
+            prompt="an oil painting of an autumn cottage by a river",
+        )
+        print("ImageReward:", scores["image_reward"])
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Directory Batch Evaluation
+
+    Calculate arithmetic mean reward across generated candidates:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics image_reward \
+            --image path/to/generated_folder/ \
+            --prompt "futuristic urban cityscape in neon rain"
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate_detailed
+
+        result = evaluate_detailed(
+            metrics=["image_reward"],
+            image="path/to/generated_folder/",
+            prompt="futuristic urban cityscape in neon rain",
+        )
+        print(f"Mean ImageReward: {result['image_reward']:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

@@ -1,0 +1,126 @@
+---
+title: 视觉问答对齐概率
+description: 基于视觉语言大模型后验生成概率的复杂组合与图文对齐度量
+---
+
+# 视觉问答对齐概率
+
+视觉问答对齐概率通过将图文一致性评测重新建模为视觉问答任务，评判生成图像对复杂提示词的理解与呈现精度。传统双塔特征余弦相似度（如普通图文匹配分）常陷入“词袋效应”，往往忽略文本否定句式、空间方位关系、数量统计以及复杂属性绑定。
+
+视觉问答对齐概率通过计算多模态大模型对受测图像回答“是（Yes）”的序列交叉熵后验概率，直接输出位于 $[0.0, 1.0]$ 区间的连续标定概率，具备优异的组合性判别力。
+
+---
+
+## 核心规格
+
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 视觉问答对齐与组合语义 |
+| **命令行参数** | `--metrics vqascore` |
+| **输入要求** | `--image <路径>`, `--prompt <文本提示词>` (两项皆必填) |
+| **禁止参数** | `--reference` (提示词生成评测禁止传入参考原图) |
+| **标度范围** | 标量连续概率值 `[0.0, 1.0]` (严密闭区间) |
+| **取值方向** | **数值越高越优** |
+| **模型主干** | 微调多模态大模型序列生成网络与高分辨率视觉塔 |
+| **可选依赖** | `pip install 'image-evaluator[vqa]'` |
+| **权威源** | [Lin 等, 2024](https://arxiv.org/abs/2404.01291) |
+
+---
+
+## 理论公式推导
+
+系统使用标准问答模版构建序列提问：
+
+```math
+\text{问题：这幅图是否展示了“{提示词}”？请回答是或否。}
+```
+
+```math
+\text{目标回答：是}
+```
+
+通过计算目标标记词在模型解码阶段的序列交叉熵损失 $\mathcal{L}_{\text{CE}}$，获取后验生成概率：
+
+```math
+\text{VQAScore}(I, T) = P(\text{"Yes"} \mid I, T) = \exp\left(-\mathcal{L}_{\text{CE}}(\hat{\mathbf{y}}, \mathbf{y}_{\text{"Yes"}})\right)
+```
+
+分值越接近 1.0 说明生成结果对提示词中多实体、修饰词及空间关系的呈现越精准。
+
+---
+
+## 概念界定与非等价性声明
+
+该指标与余弦相似度或无界标量奖励具有本质不同：
+- **严格概率标定**：取值恒定落在 $[0.0, 1.0]$ 范围之内，反映肯定回答的后验几率。
+- **细粒度组合性**：对方位介词（如“在...左侧”）、数量词（如“三只猫”）及多属性绑定具有高度敏感性。
+- **长宽比保留预处理**：核心库内置自适应留白填充预处理，彻底避免强制拉伸造成的几何失真。
+
+---
+
+## 硬件与资源开销
+
+- 权重拉取体积约为 7.49 GiB。
+- 采用低精度载入优化，个人计算设备中央处理器内存峰值仅占用约 1.83 GiB，常规 16GB 开发者设备可流畅运行。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单张生成图像视觉问答一致性评估
+
+    评估复杂组合描述的图文对齐后验概率：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics vqascore \
+            --image path/to/generated.png \
+            --prompt "停在现代玻璃大厦前方的一辆红色跑车"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator import evaluate
+
+        scores = evaluate(
+            metrics="vqascore",
+            image="path/to/generated.png",
+            prompt="停在现代玻璃大厦前方的一辆红色跑车",
+        )
+        print("对齐概率:", scores["vqascore"])
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 文件夹批量评估
+
+    对目录下批量生成样本计算算术平均概率：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics vqascore \
+            --image path/to/generated_folder/ \
+            --prompt "放在一叠书籍上方的一只银色杯子"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator import evaluate_detailed
+
+        result = evaluate_detailed(
+            metrics=["vqascore"],
+            image="path/to/generated_folder/",
+            prompt="放在一叠书籍上方的一只银色杯子",
+        )
+        print(f"平均对齐概率: {result['vqascore']:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

@@ -3,6 +3,9 @@
   "pages": [
     "clip",
     "directional-clip",
-    "pickscore"
+    "pickscore",
+    "hpsv2",
+    "image-reward",
+    "vqascore"
   ]
 }

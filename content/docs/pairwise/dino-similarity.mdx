@@ -1,0 +1,114 @@
+---
+title: DINOv2 (Structural & Semantic Similarity)
+description: Self-supervised Vision Transformer representation fidelity using DINOv2-base
+---
+
+# DINOv2 (Structural & Semantic Similarity)
+
+DINOv2 Image-Image Similarity evaluates structural layout and visual semantic fidelity between paired images using representations learned by a self-supervised Vision Transformer. Unlike models trained with language supervision, DINOv2 develops fine-grained spatial and geometric scene understanding without relying on text annotations, making it exceptionally sensitive to structural displacements, layout preservation, and object morphology.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Visual Semantic & Structural Fidelity |
+| **CLI Metric** | `dino_similarity` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Spatial Constraint** | Resized and center-cropped to $$224 \times 224$$; identical input dimensions not required |
+| **Output Scale** | Continuous scalar in `[-1.0, 1.0]` (identical image evaluates to 1.0000) |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | `facebook/dinov2-base` (Vision Transformer Base, patch size 14) |
+| **Upstream Source** | [Oquab et al., 2023 (DINOv2)](https://arxiv.org/abs/2304.07193) |
+
+---
+
+## Mathematical Formulation
+
+Given reference image $I_{\text{ref}}$ and candidate image $I_{\text{gen}}$, DINOv2 extracts the normalized class token embedding $\mathbf{z}_{\text{cls}}$ from the final transformer block:
+
+```math
+S_{\text{DINO}}(I_{\text{ref}}, I_{\text{gen}}) = \frac{\mathbf{z}_{\text{cls}}(I_{\text{ref}})}{\|\mathbf{z}_{\text{cls}}(I_{\text{ref}})\|_2} \cdot \frac{\mathbf{z}_{\text{cls}}(I_{\text{gen}})}{\|\mathbf{z}_{\text{cls}}(I_{\text{gen}})\|_2}
+```
+
+where $\mathbf{z}_{\text{cls}}(I) \in \mathbb{R}^{768}$ represents the global scene structure representation.
+
+---
+
+## Non-Equivalence Notice: Distinct from PIE-Bench Structure Distance
+
+Generic DINO cosine similarity is **not** equivalent to specialized benchmark metrics such as PIE-Bench Structure Distance:
+- **PIE-Bench Structure Distance**: Computes cross-layer self-attention map distances or spatial feature correlation under localized spatial masks.
+- **Toolkit Metric (`dino_similarity`)**: Evaluates global, unmasked CLS-token cosine similarity across the full visual field.
+
+---
+
+## Interpretation & Guidance
+
+- **Structural Sensitivity**: Strongly sensitive to composition shifts, perspective distortions, and subject geometry alteration during image editing tasks.
+- **Self-Supervised Feature Robustness**: Because features are extracted without linguistic bias, DINOv2 serves as an objective structural check alongside text-conditioned preference and alignment metrics.
+- **Stem Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Pair Evaluation
+
+    Assess structural similarity between an edited image and its reference:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics dino_similarity \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate
+
+        scores = evaluate(
+            metrics="dino_similarity",
+            image="path/to/generated.png",
+            reference="path/to/reference.png",
+        )
+        print("DINOv2 Similarity:", scores["dino_similarity"])
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Folder Evaluation
+
+    Evaluate structural preservation across an entire directory:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics dino_similarity \
+            --reference path/to/reference_dir/ \
+            --image path/to/generated_dir/
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate_detailed
+
+        result = evaluate_detailed(
+            metrics=["dino_similarity"],
+            image="path/to/generated_dir/",
+            reference="path/to/reference_dir/",
+        )
+        print(f"Mean DINOv2: {result['dino_similarity']:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

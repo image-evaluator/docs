@@ -9,10 +9,15 @@
 - [CLIP Score](/text-image/clip): Text-to-image cross-modal semantic cosine alignment using CLIP ViT-B/32
 - [Directional CLIP](/text-image/directional-clip): Relative semantic direction alignment for image editing using CLIP embedding differences
 - [PickScore](/text-image/pickscore): Fine-tuned CLIP ViT-H-14 human preference reward scoring trained on the Pick-a-Pic benchmark
+- [HPS v2.1 (Human Preference Score)](/text-image/hpsv2): Human aesthetic and visual alignment evaluation using fine-tuned OpenCLIP ViT-H/14
+- [ImageReward (Human Preference Reward)](/text-image/image-reward): Cross-attention multimodal Transformer with 5-layer MLP scalar reward modeling
+- [VQAScore (Visual Question Answering Alignment)](/text-image/vqascore): Compositionality and text-image alignment evaluation via visual question answering posterior probability
 - [LPIPS (Perceptual Distance)](/pairwise/lpips): Learned Perceptual Image Patch Similarity using AlexNet multi-scale deep features
 - [SSIM (Structural Similarity)](/pairwise/ssim): Structural Similarity Index Measure computed across luminance, contrast, and structure
 - [PSNR (Peak Signal-to-Noise Ratio)](/pairwise/psnr): Peak Signal-to-Noise Ratio (dB) computed from pixel-wise Mean Squared Error
 - [ArcFace Distance](/pairwise/arcface): Facial identity preservation using InsightFace buffalo_l 512-dimensional cosine feature distance
+- [CLIP-I (Image-Image Similarity)](/pairwise/clip-i): Pairwise visual semantic and subject identity fidelity using OpenCLIP ViT-L/14
+- [DINOv2 (Structural & Semantic Similarity)](/pairwise/dino-similarity): Self-supervised Vision Transformer representation fidelity using DINOv2-base
 - [FID (Fréchet Inception Distance)](/distribution/fid): Generative distribution distance evaluated in Inception-v3 pool3 feature space
 - [KID (Kernel Inception Distance)](/distribution/kid): Unbiased polynomial kernel maximum mean discrepancy (MMD) in Inception feature space
 - [Visual Benchmark (Interactive Demo)](/benchmark/visual-demo): Interactive multi-metric dashboard and dual-image slider comparative inspection

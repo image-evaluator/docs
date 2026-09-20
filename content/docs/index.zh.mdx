@@ -5,25 +5,31 @@ description: 统一图像质量与多维对齐评估套件
 
 # 快速开始
 
-`image-evaluator` 是一套面向生成式人工智能研究员与工程实践者的轻量级统一评估套件。该工具在统一的接口规范下，系统性覆盖了生成图像质量的**九大核心评估维度**：单图视觉美学质量预测、文本图像跨模态语义对齐、主体人脸身份保真度、成对图像保真度三元组（深度感知特征距离、结构统计相似度、峰值信噪比）、数据集分布保真度（双特征空间弗雷歇距离与核感知距离）以及人类主观偏好对齐评分。
+`image-evaluator` 是一套面向生成式人工智能研究员与工程实践者的轻量级统一评估套件。该工具在统一的接口规范下，系统性覆盖了生成图像质量的**十五项核心评估指标**：单图视觉美学质量预测、文本图像跨模态语义对齐、方向性图像编辑语义漂移、主体人脸身份保真度、成对图像保真度三元组（深度感知特征距离、结构统计相似度、峰值信噪比）、主体视觉语义一致性（CLIP-I）、自监督结构与布局保持（DINOv2）、数据集分布保真度（双特征空间弗雷歇距离与核感知距离）、人类主观偏好对齐评分（PickScore 与 HPS v2.1）、多模态标量奖励建模（ImageReward）以及视觉问答组合对齐后验概率（VQAScore）。
 
 ---
 
 ## 评估维度与指标矩阵
 
-本套件严格基于评测输入参数契约，将九项核心指标划分为四大体系：
+本套件严格基于评测输入参数契约，将十五项核心指标划分为四大体系：
 
 | 评测类别 | 指标名称 | 必填参数选项 | 标度范围 | 取值方向 | 对应文档 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **单图无参考质量** | `aesthetic` | `--image` | `[1.0, 10.0]` | 数值越高越优 | [Aesthetic (单图美学)](/zh/no-reference/aesthetic) |
-| **跨模态图文对齐** | `clip` | `--image`, `--prompt` | `[0.0, 100.0]` | 数值越高越优 | [CLIP Score (图文对齐)](/zh/text-image/clip) |
-| **跨模态图文对齐** | `pickscore` | `--image`, `--prompt` | Logits $\approx [15, 25]$ | 数值越高越优 | [PickScore (偏好对齐)](/zh/text-image/pickscore) |
-| **成对保真与主体** | `lpips` | `--image`, `--reference` | `[0.0, +inf)` | 数值越低越优 | [LPIPS (深度感知)](/zh/pairwise/lpips) |
-| **成对保真与主体** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [SSIM (结构相似)](/zh/pairwise/ssim) |
-| **成对保真与主体** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | 数值越高越优 | [PSNR (峰值信噪比)](/zh/pairwise/psnr) |
-| **成对保真与主体** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | 数值越低越优 | [ArcFace (主体保真)](/zh/pairwise/arcface) |
-| **群体生成分布差异** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | 数值越低越优 | [FID (弗雷歇距离)](/zh/distribution/fid) |
-| **群体生成分布差异** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | 数值越低越优 | [KID (核最大均值)](/zh/distribution/kid) |
+| **单图无参考质量** | `aesthetic` | `--image` | `[1.0, 10.0]` | 数值越高越优 | [单图美学](/zh/no-reference/aesthetic) |
+| **跨模态图文对齐** | `clip` | `--image`, `--prompt` | `[0.0, 100.0]` | 数值越高越优 | [图文对齐](/zh/text-image/clip) |
+| **跨模态图文对齐** | `directional_clip` | `--image`, `--reference`, `--prompt`, `--prompt-src` | `[-1.0, 1.0]` | 数值越高越优 | [编辑方向对齐](/zh/text-image/directional-clip) |
+| **跨模态图文对齐** | `pickscore` | `--image`, `--prompt` | Logits $\approx [15, 25]$ | 数值越高越优 | [偏好选择概率](/zh/text-image/pickscore) |
+| **跨模态图文对齐** | `hpsv2` | `--image`, `--prompt` | `[-1.0, 1.0]` | 数值越高越优 | [人类审美偏好分](/zh/text-image/hpsv2) |
+| **跨模态图文对齐** | `image_reward` | `--image`, `--prompt` | 标量 $\approx [-2.5, 2.5]$ | 数值越高越优 | [多模态标量偏好奖励](/zh/text-image/image-reward) |
+| **跨模态图文对齐** | `vqascore` | `--image`, `--prompt` | `[0.0, 1.0]` | 数值越高越优 | [视觉问答对齐概率](/zh/text-image/vqascore) |
+| **成对保真与主体** | `lpips` | `--image`, `--reference` | `[0.0, +inf)` | 数值越低越优 | [深度感知](/zh/pairwise/lpips) |
+| **成对保真与主体** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [结构相似](/zh/pairwise/ssim) |
+| **成对保真与主体** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | 数值越高越优 | [峰值信噪比](/zh/pairwise/psnr) |
+| **成对保真与主体** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | 数值越低越优 | [主体人脸保真](/zh/pairwise/arcface) |
+| **成对保真与主体** | `clip_i` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [图像语义相似度](/zh/pairwise/clip-i) |
+| **成对保真与主体** | `dino_similarity` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [自监督结构相似度](/zh/pairwise/dino-similarity) |
+| **群体生成分布差异** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | 数值越低越优 | [弗雷歇距离](/zh/distribution/fid) |
+| **群体生成分布差异** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | 数值越低越优 | [核最大均值差异](/zh/distribution/kid) |
 
 ---
 

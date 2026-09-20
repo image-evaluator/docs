@@ -7,23 +7,29 @@
 
 > Lightweight unified evaluation toolkit for generative image quality and alignment
 
-`image-evaluator` is a lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
+`image-evaluator` is a lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **fifteen core evaluation metrics**: single-image aesthetic score, cross-modal text-image semantic alignment, directional editing alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), subject-level CLIP-I fidelity, self-supervised DINOv2 layout fidelity, human preference scoring (PickScore and HPS v2.1), scalar human reward modeling (ImageReward), and compositional visual question answering posterior alignment (VQAScore).
 
 ---
 
 ## Metric Architecture Matrix
 
-The toolkit structures its nine core metrics across four functional dimensions based on evaluation input interface:
+The toolkit structures its fifteen core metrics across four functional dimensions based on evaluation input interface:
 
 | Category | Metric | Required Options | Output Scale | Direction | Documentation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **No-Reference Quality** | `aesthetic` | `--image` | `[1.0, 10.0]` | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
 | **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | `[0.0, 100.0]` | Higher is better | [CLIP Score](/text-image/clip) |
+| **Text-to-Image Alignment** | `directional_clip` | `--image`, `--reference`, `--prompt`, `--prompt-src` | `[-1.0, 1.0]` | Higher is better | [Directional CLIP](/text-image/directional-clip) |
 | **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Logits $\approx [15, 25]$ | Higher is better | [PickScore](/text-image/pickscore) |
+| **Text-to-Image Alignment** | `hpsv2` | `--image`, `--prompt` | `[-1.0, 1.0]` | Higher is better | [HPS v2.1](/text-image/hpsv2) |
+| **Text-to-Image Alignment** | `image_reward` | `--image`, `--prompt` | Scalar $\approx [-2.5, 2.5]$ | Higher is better | [ImageReward](/text-image/image-reward) |
+| **Text-to-Image Alignment** | `vqascore` | `--image`, `--prompt` | `[0.0, 1.0]` | Higher is better | [VQAScore](/text-image/vqascore) |
 | **Pairwise Comparison** | `lpips` | `--image`, `--reference` | `[0.0, +inf)` | Lower is better | [LPIPS Distance](/pairwise/lpips) |
 | **Pairwise Comparison** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [SSIM Similarity](/pairwise/ssim) |
 | **Pairwise Comparison** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | Higher is better | [PSNR Ratio](/pairwise/psnr) |
 | **Pairwise Comparison** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | Lower is better | [ArcFace Distance](/pairwise/arcface) |
+| **Pairwise Comparison** | `clip_i` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [CLIP-I](/pairwise/clip-i) |
+| **Pairwise Comparison** | `dino_similarity` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [DINOv2](/pairwise/dino-similarity) |
 | **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | Lower is better | [FID Score](/distribution/fid) |
 | **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | Lower is better | [KID Score](/distribution/kid) |
 
@@ -755,6 +761,326 @@ Compare multiple generated candidates to determine which one humans are most lik
 
 ---
 
+# HPS v2.1 (Human Preference Score)
+
+> Human aesthetic and visual alignment evaluation using fine-tuned OpenCLIP ViT-H/14
+
+Human Preference Score v2.1 (HPS v2.1) by Wu et al. (NeurIPS 2023) measures how closely a generated image aligns with human aesthetic judgments and prompt conditioning. Fine-tuned on the Human Preference Dataset v2 (HPD v2) containing 800,000 human pairwise choices across competitive diffusion models, HPS v2.1 provides high correlation with human perceptual rank order.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Human Preference & Text-Image Alignment |
+| **CLI Metric** | `hpsv2` |
+| **Input Options** | `--image <path>`, `--prompt <string>` (both required) |
+| **Prohibited Options** | `--reference` (not applicable for text-to-image prompt evaluation) |
+| **Output Scale** | Continuous cosine similarity in `[-1.0, 1.0]` (typical range `[0.20, 0.35]`) |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | OpenCLIP `ViT-H-14` fine-tuned checkpoint (`HPS_v2.1_compressed.pt`) |
+| **Install Extra** | `pip install 'image-evaluator[preference]'` |
+| **Upstream Source** | [Wu et al., NeurIPS 2023 (HPSv2)](https://arxiv.org/abs/2306.09341) |
+
+---
+
+## Mathematical Formulation
+
+HPS v2.1 projects both the visual image and text prompt into a normalized 1024-dimensional joint embedding space using the fine-tuned dual-tower transformer:
+
+```math
+S_{\text{HPS}}(I, T) = \frac{\mathbf{v}(I)}{\|\mathbf{v}(I)\|_2} \cdot \frac{\mathbf{t}(T)}{\|\mathbf{t}(T)\|_2}
+
+```
+
+where $\mathbf{v}(I) \in \mathbb{R}^{1024}$ and $\mathbf{t}(T) \in \mathbb{R}^{1024}$ represent the visual and textual representation vectors.
+
+---
+
+## Non-Equivalence Notice: Not Interchangeable with PickScore or ImageReward
+
+`hpsv2` is **not** numerically comparable to other preference or reward models:
+- **HPS v2.1**: Computes raw cosine similarity (strictly within `[-1.0, 1.0]`, typically $0.20 \sim 0.35$).
+- **PickScore**: Applies an MLP classification head with temperature scaling, yielding positive logits in $[15.0, 25.0]$.
+- **ImageReward**: Uses cross-attention and an MLP regression head, producing unbounded continuous scalar reward values centered around zero ($[-2.5, 2.5]$).
+
+---
+
+## Download Disclosure Policy
+
+The `HPS_v2.1_compressed.pt` checkpoint requires approximately 1.84 GiB of storage. Under toolkit governance rules, uncached weights require explicit opt-in (`--allow-download` via CLI or `allow_download=True` via Python API).
+
+---
+
+## Usage Examples
+
+### Single Image Evaluation
+
+Score human aesthetic preference for a generated image:
+
+    ```bash
+    image-evaluator --metrics hpsv2 \
+        --image path/to/generated.png \
+        --prompt "a majestic snow leopard in high mountain blizzard"
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate
+
+    scores = evaluate(
+        metrics="hpsv2",
+        image="path/to/generated.png",
+        prompt="a majestic snow leopard in high mountain blizzard",
+    )
+    print("HPS v2.1 Score:", scores["hpsv2"])
+
+    ```
+
+### Directory Batch Evaluation
+
+Evaluate arithmetic mean preference across a folder of candidate images:
+
+    ```bash
+    image-evaluator --metrics hpsv2 \
+        --image path/to/generated_folder/ \
+        --prompt "modern architectural villa with glass facade"
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate_detailed
+
+    result = evaluate_detailed(
+        metrics=["hpsv2"],
+        image="path/to/generated_folder/",
+        prompt="modern architectural villa with glass facade",
+    )
+    print(f"Mean HPS v2.1: {result['hpsv2']:.4f}")
+
+    ```
+
+---
+
+# ImageReward (Human Preference Reward)
+
+> Cross-attention multimodal Transformer with 5-layer MLP scalar reward modeling
+
+ImageReward by Xu et al. (NeurIPS 2023) evaluates text-to-image synthesis using a multimodal cross-attention reward model. Unlike dual-tower cosine similarity architectures, ImageReward allows text tokens to deeply cross-attend to visual patch representations, capturing intricate object-attribute bindings and fine-grained visual defects before mapping them to a standardized continuous scalar reward score.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Human Preference & Scalar Reward Modeling |
+| **CLI Metric** | `image_reward` |
+| **Input Options** | `--image <path>`, `--prompt <string>` (both required) |
+| **Prohibited Options** | `--reference` (not applicable for text-to-image prompt evaluation) |
+| **Output Scale** | Standardized continuous scalar in $\mathbb{R}$ (typical range `[-2.5, 2.5]`, mean $\approx 0$) |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | BLIP ViT-L vision encoder + Cross-Attention Text Encoder + 5-layer MLP head |
+| **Install Extra** | `pip install 'image-evaluator[preference]'` |
+| **Upstream Source** | [Xu et al., NeurIPS 2023 (ImageReward)](https://arxiv.org/abs/2304.05977) |
+
+---
+
+## Mathematical Formulation
+
+ImageReward extracts visual patch tokens $\mathbf{z}_{\text{image}}$ from the ViT-L/16 backbone and fuses them with prompt tokens $\mathbf{z}_{\text{text}}$ via bidirectional cross-attention layers. The multimodal representation is projected to raw reward scalar $r$ via a 5-layer perceptron and standardized using training corpus statistics:
+
+```math
+r = \text{MLP}\left( \text{CrossAttention}(\mathbf{z}_{\text{text}}, \mathbf{z}_{\text{image}}) \right)
+
+```
+
+```math
+S_{\text{ImageReward}}(I, T) = \frac{r - \mu}{\sigma}
+
+```
+
+where $\mu \approx 0.16717$ and $\sigma \approx 1.03334$.
+
+---
+
+## Non-Equivalence Notice: Standardized Scalar Reward
+
+`image_reward` represents a continuous real-valued reward scalar:
+- **Never describe as similarity or probability**: An ImageReward score of $0.5$ does not denote "50% confidence" or "0.5 cosine angle". It indicates a positive reward $0.5$ standard deviations above average human preference.
+- **Negative Values**: Scores below zero indicate image quality or text alignment falling below the empirical median of the training benchmark.
+- **Architectural Independence**: `image-evaluator` natively implements the model using standard `transformers` and `timm`, completely removing upstream legacy dependencies (`fairscale`, `datasets`, `diffusers`).
+
+---
+
+## Usage Examples
+
+### Single Image Evaluation
+
+Compute scalar human preference reward for an individual sample:
+
+    ```bash
+    image-evaluator --metrics image_reward \
+        --image path/to/generated.png \
+        --prompt "an oil painting of an autumn cottage by a river"
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate
+
+    scores = evaluate(
+        metrics="image_reward",
+        image="path/to/generated.png",
+        prompt="an oil painting of an autumn cottage by a river",
+    )
+    print("ImageReward:", scores["image_reward"])
+
+    ```
+
+### Directory Batch Evaluation
+
+Calculate arithmetic mean reward across generated candidates:
+
+    ```bash
+    image-evaluator --metrics image_reward \
+        --image path/to/generated_folder/ \
+        --prompt "futuristic urban cityscape in neon rain"
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate_detailed
+
+    result = evaluate_detailed(
+        metrics=["image_reward"],
+        image="path/to/generated_folder/",
+        prompt="futuristic urban cityscape in neon rain",
+    )
+    print(f"Mean ImageReward: {result['image_reward']:.4f}")
+
+    ```
+
+---
+
+# VQAScore (Visual Question Answering Alignment)
+
+> Compositionality and text-image alignment evaluation via visual question answering posterior probability
+
+VQAScore by Lin et al. (ECCV 2024) evaluates generative text-to-image synthesis by casting alignment evaluation as visual question answering (VQA). Conventional dual-tower embeddings (such as CLIPScore) project whole scenes and prompts into isolated feature vectors, frequently suffering from "bag-of-words" degradation—ignoring grammatical negation, relative spatial relationships, counting, and multi-attribute binding.
+
+VQAScore overcomes this fundamental limitation by scoring generation through the posterior generation probability that a vision-language model answers **"Yes"** to whether the image depicts the prompt.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Visual Question Answering Alignment & Compositionality |
+| **CLI Metric** | `vqascore` |
+| **Input Options** | `--image <path>`, `--prompt <string>` (both required) |
+| **Prohibited Options** | `--reference` (not applicable for text-to-image prompt evaluation) |
+| **Output Scale** | Continuous probability scalar strictly bounded in `[0.0, 1.0]` |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | Fine-tuned CLIP-FlanT5-XL (3B) + CLIP-ViT-L/14-336 vision tower |
+| **Install Extra** | `pip install 'image-evaluator[vqa]'` |
+| **Upstream Source** | [Lin et al., ECCV 2024 (VQAScore)](https://arxiv.org/abs/2404.01291) |
+
+---
+
+## Mathematical Formulation
+
+The evaluation prompt is constructed using the standardized bidirectional query template:
+
+```math
+\text{Question: Does this figure show "{prompt}"? Please answer yes or no.}
+
+```
+
+```math
+\text{Target Answer: Yes}
+
+```
+
+The evaluation score is computed directly from the sequence cross-entropy loss over the target tokens:
+
+```math
+\text{VQAScore}(I, T) = P(\text{"Yes"} \mid I, T) = \exp\left(-\mathcal{L}_{\text{CE}}(\hat{\mathbf{y}}, \mathbf{y}_{\text{"Yes"}})\right)
+
+```
+
+This yields a continuous probability strictly within $[0.0, 1.0]$, where higher values indicate stronger text-image alignment and compositional fidelity.
+
+---
+
+## Non-Equivalence Notice: Calibrated Posterior Probability
+
+`vqascore` is fundamentally distinct from dual-tower cosine similarities and regression rewards:
+- **Calibrated Posterior Probability**: Bounded strictly in $[0.0, 1.0]$, representing model likelihood of positive assertion.
+- **Compositional Superiority**: Sensitive to spatial prepositions (*left of*, *inside*), counts (*three apples*), and color-object binding (*red cube and blue sphere*).
+- **Aspect Ratio Preservation**: `image-evaluator` applies `expand2square` padding with the CLIP preprocessor image mean color prior to resizing, eliminating distortive geometric stretching.
+
+---
+
+## Hardware & Storage Requirements
+
+- Total download size is $\approx 7.49\text{ GiB}$ across model snapshots.
+- Memory footprint in CPU `bfloat16` mode is $\approx 1.83\text{ GiB}$, permitting execution on standard 16GB developer workstations.
+
+---
+
+## Usage Examples
+
+### Single Image Evaluation
+
+Evaluate compositional alignment for a complex visual prompt:
+
+    ```bash
+    image-evaluator --metrics vqascore \
+        --image path/to/generated.png \
+        --prompt "a red sports car parked in front of a modern glass building"
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate
+
+    scores = evaluate(
+        metrics="vqascore",
+        image="path/to/generated.png",
+        prompt="a red sports car parked in front of a modern glass building",
+    )
+    print("VQAScore Probability:", scores["vqascore"])
+
+    ```
+
+### Directory Batch Evaluation
+
+Evaluate arithmetic mean alignment across multiple candidate generations:
+
+    ```bash
+    image-evaluator --metrics vqascore \
+        --image path/to/generated_folder/ \
+        --prompt "a silver cup placed on top of a stack of books"
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate_detailed
+
+    result = evaluate_detailed(
+        metrics=["vqascore"],
+        image="path/to/generated_folder/",
+        prompt="a silver cup placed on top of a stack of books",
+    )
+    print(f"Mean VQAScore: {result['vqascore']:.4f}")
+
+    ```
+
+---
+
 # LPIPS (Perceptual Distance)
 
 > Learned Perceptual Image Patch Similarity using AlexNet multi-scale deep features
@@ -1172,6 +1498,210 @@ Batch evaluate personalization testsets across folders:
 
 - **Paper**: Deng et al., 2019, *ArcFace: Additive Angular Margin Loss for Deep Face Recognition* (CVPR 2019, [arXiv:1801.07698](https://arxiv.org/abs/1801.07698))
 - **Official Repository**: [deepinsight/insightface](https://github.com/deepinsight/insightface)
+
+---
+
+# CLIP-I (Image-Image Similarity)
+
+> Pairwise visual semantic and subject identity fidelity using OpenCLIP ViT-L/14
+
+CLIP-I measures the visual semantic and subject-level fidelity between two images (such as a reference subject image and an edited or generated candidate). Rather than computing low-level pixel differences or patch-level texture degradation, CLIP-I projects both images into the shared vision embedding space of OpenAI's Vision Transformer and computes their normalized cosine similarity.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Visual Semantic & Subject Fidelity |
+| **CLI Metric** | `clip_i` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Spatial Constraint** | Resized and center-cropped to $$224 \times 224$$; identical input dimensions not required |
+| **Output Scale** | Continuous scalar in `[-1.0, 1.0]` (identical image evaluates to 1.0000) |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | OpenCLIP `ViT-L-14-quickgelu` (`openai` weights) |
+| **Upstream Source** | [Radford et al., 2021](https://arxiv.org/abs/2103.00020) / [Ruiz et al., 2023 (DreamBooth)](https://arxiv.org/abs/2208.12242) |
+
+---
+
+## Mathematical Formulation
+
+Given reference image $I_{\text{ref}}$ and generated image $I_{\text{gen}}$, CLIP-I extracts normalized visual feature vectors using the frozen CLIP image encoder $\phi$:
+
+```math
+S_{\text{CLIP-I}}(I_{\text{ref}}, I_{\text{gen}}) = \frac{\phi(I_{\text{ref}})}{\|\phi(I_{\text{ref}})\|_2} \cdot \frac{\phi(I_{\text{gen}})}{\|\phi(I_{\text{gen}})\|_2}
+
+```
+
+where $\phi(I) \in \mathbb{R}^{768}$ is the visual projection vector output by the ViT-L/14 backbone.
+
+---
+
+## Architectural Detail & Anti-Collapse Guarantee
+
+Standard CLIP ViT-L/14 models trained by OpenAI employ QuickGELU non-linear activations rather than standard GELU. `image-evaluator` explicitly binds the official `ViT-L-14-quickgelu` architecture to guarantee numerical fidelity against the original weights, preventing representation collapse and feature distortion.
+
+---
+
+## Interpretation & Guidance
+
+- **Subject Preservation**: Extensively adopted in subject-driven generation (DreamBooth, Textual Inversion, CustomDiffusion) and personalized image editing benchmarks to assess whether the synthesized subject maintains the high-level identity of the reference.
+- **Independence from Spatial Alignment**: Because inputs are projected into a global visual concept space, the subject can undergo pose, scale, or background changes without catastrophic score drops, unlike pixel-space metrics.
+- **Stem Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
+
+---
+
+## Usage Examples
+
+### Single Pair Evaluation
+
+Evaluate subject fidelity between a generated image and its reference:
+
+    ```bash
+    image-evaluator --metrics clip_i \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate
+
+    scores = evaluate(
+        metrics="clip_i",
+        image="path/to/generated.png",
+        reference="path/to/reference.png",
+    )
+    print("CLIP-I:", scores["clip_i"])
+
+    ```
+
+### Folder Evaluation
+
+Evaluate an entire directory of edited images against corresponding references:
+
+    ```bash
+    image-evaluator --metrics clip_i \
+        --reference path/to/reference_dir/ \
+        --image path/to/generated_dir/
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate_detailed
+
+    result = evaluate_detailed(
+        metrics=["clip_i"],
+        image="path/to/generated_dir/",
+        reference="path/to/reference_dir/",
+    )
+    print(f"Mean CLIP-I: {result['clip_i']:.4f}")
+
+    ```
+
+---
+
+# DINOv2 (Structural & Semantic Similarity)
+
+> Self-supervised Vision Transformer representation fidelity using DINOv2-base
+
+DINOv2 Image-Image Similarity evaluates structural layout and visual semantic fidelity between paired images using representations learned by a self-supervised Vision Transformer. Unlike models trained with language supervision, DINOv2 develops fine-grained spatial and geometric scene understanding without relying on text annotations, making it exceptionally sensitive to structural displacements, layout preservation, and object morphology.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Visual Semantic & Structural Fidelity |
+| **CLI Metric** | `dino_similarity` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Spatial Constraint** | Resized and center-cropped to $$224 \times 224$$; identical input dimensions not required |
+| **Output Scale** | Continuous scalar in `[-1.0, 1.0]` (identical image evaluates to 1.0000) |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | `facebook/dinov2-base` (Vision Transformer Base, patch size 14) |
+| **Upstream Source** | [Oquab et al., 2023 (DINOv2)](https://arxiv.org/abs/2304.07193) |
+
+---
+
+## Mathematical Formulation
+
+Given reference image $I_{\text{ref}}$ and candidate image $I_{\text{gen}}$, DINOv2 extracts the normalized class token embedding $\mathbf{z}_{\text{cls}}$ from the final transformer block:
+
+```math
+S_{\text{DINO}}(I_{\text{ref}}, I_{\text{gen}}) = \frac{\mathbf{z}_{\text{cls}}(I_{\text{ref}})}{\|\mathbf{z}_{\text{cls}}(I_{\text{ref}})\|_2} \cdot \frac{\mathbf{z}_{\text{cls}}(I_{\text{gen}})}{\|\mathbf{z}_{\text{cls}}(I_{\text{gen}})\|_2}
+
+```
+
+where $\mathbf{z}_{\text{cls}}(I) \in \mathbb{R}^{768}$ represents the global scene structure representation.
+
+---
+
+## Non-Equivalence Notice: Distinct from PIE-Bench Structure Distance
+
+Generic DINO cosine similarity is **not** equivalent to specialized benchmark metrics such as PIE-Bench Structure Distance:
+- **PIE-Bench Structure Distance**: Computes cross-layer self-attention map distances or spatial feature correlation under localized spatial masks.
+- **Toolkit Metric (`dino_similarity`)**: Evaluates global, unmasked CLS-token cosine similarity across the full visual field.
+
+---
+
+## Interpretation & Guidance
+
+- **Structural Sensitivity**: Strongly sensitive to composition shifts, perspective distortions, and subject geometry alteration during image editing tasks.
+- **Self-Supervised Feature Robustness**: Because features are extracted without linguistic bias, DINOv2 serves as an objective structural check alongside text-conditioned preference and alignment metrics.
+- **Stem Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
+
+---
+
+## Usage Examples
+
+### Single Pair Evaluation
+
+Assess structural similarity between an edited image and its reference:
+
+    ```bash
+    image-evaluator --metrics dino_similarity \
+        --reference path/to/reference.png \
+        --image path/to/generated.png
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate
+
+    scores = evaluate(
+        metrics="dino_similarity",
+        image="path/to/generated.png",
+        reference="path/to/reference.png",
+    )
+    print("DINOv2 Similarity:", scores["dino_similarity"])
+
+    ```
+
+### Folder Evaluation
+
+Evaluate structural preservation across an entire directory:
+
+    ```bash
+    image-evaluator --metrics dino_similarity \
+        --reference path/to/reference_dir/ \
+        --image path/to/generated_dir/
+
+    ```
+
+    ```python
+    from image_evaluator import evaluate_detailed
+
+    result = evaluate_detailed(
+        metrics=["dino_similarity"],
+        image="path/to/generated_dir/",
+        reference="path/to/reference_dir/",
+    )
+    print(f"Mean DINOv2: {result['dino_similarity']:.4f}")
+
+    ```
 
 ---
 

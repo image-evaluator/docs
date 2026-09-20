@@ -1,0 +1,112 @@
+---
+title: CLIP-I (Image-Image Similarity)
+description: Pairwise visual semantic and subject identity fidelity using OpenCLIP ViT-L/14
+---
+
+# CLIP-I (Image-Image Similarity)
+
+CLIP-I measures the visual semantic and subject-level fidelity between two images (such as a reference subject image and an edited or generated candidate). Rather than computing low-level pixel differences or patch-level texture degradation, CLIP-I projects both images into the shared vision embedding space of OpenAI's Vision Transformer and computes their normalized cosine similarity.
+
+---
+
+## Technical Specifications
+
+| Property | Specification |
+| :--- | :--- |
+| **Category** | Pairwise Visual Semantic & Subject Fidelity |
+| **CLI Metric** | `clip_i` |
+| **Input Options** | `--image <path>`, `--reference <path>` (both required) |
+| **Prohibited Options** | `--prompt` (not applicable for pairwise comparison) |
+| **Spatial Constraint** | Resized and center-cropped to $$224 \times 224$$; identical input dimensions not required |
+| **Output Scale** | Continuous scalar in `[-1.0, 1.0]` (identical image evaluates to 1.0000) |
+| **Direction** | **Higher is better** |
+| **Model Backbone** | OpenCLIP `ViT-L-14-quickgelu` (`openai` weights) |
+| **Upstream Source** | [Radford et al., 2021](https://arxiv.org/abs/2103.00020) / [Ruiz et al., 2023 (DreamBooth)](https://arxiv.org/abs/2208.12242) |
+
+---
+
+## Mathematical Formulation
+
+Given reference image $I_{\text{ref}}$ and generated image $I_{\text{gen}}$, CLIP-I extracts normalized visual feature vectors using the frozen CLIP image encoder $\phi$:
+
+```math
+S_{\text{CLIP-I}}(I_{\text{ref}}, I_{\text{gen}}) = \frac{\phi(I_{\text{ref}})}{\|\phi(I_{\text{ref}})\|_2} \cdot \frac{\phi(I_{\text{gen}})}{\|\phi(I_{\text{gen}})\|_2}
+```
+
+where $\phi(I) \in \mathbb{R}^{768}$ is the visual projection vector output by the ViT-L/14 backbone.
+
+---
+
+## Architectural Detail & Anti-Collapse Guarantee
+
+Standard CLIP ViT-L/14 models trained by OpenAI employ QuickGELU non-linear activations rather than standard GELU. `image-evaluator` explicitly binds the official `ViT-L-14-quickgelu` architecture to guarantee numerical fidelity against the original weights, preventing representation collapse and feature distortion.
+
+---
+
+## Interpretation & Guidance
+
+- **Subject Preservation**: Extensively adopted in subject-driven generation (DreamBooth, Textual Inversion, CustomDiffusion) and personalized image editing benchmarks to assess whether the synthesized subject maintains the high-level identity of the reference.
+- **Independence from Spatial Alignment**: Because inputs are projected into a global visual concept space, the subject can undergo pose, scale, or background changes without catastrophic score drops, unlike pixel-space metrics.
+- **Stem Pairing**: In directory mode, files are paired strictly by matching case-sensitive filename stems across formats.
+
+---
+
+## Usage Examples
+
+<Steps>
+  <Step>
+    ### Single Pair Evaluation
+
+    Evaluate subject fidelity between a generated image and its reference:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics clip_i \
+            --reference path/to/reference.png \
+            --image path/to/generated.png
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate
+
+        scores = evaluate(
+            metrics="clip_i",
+            image="path/to/generated.png",
+            reference="path/to/reference.png",
+        )
+        print("CLIP-I:", scores["clip_i"])
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Folder Evaluation
+
+    Evaluate an entire directory of edited images against corresponding references:
+
+    <Tabs items={["CLI Command", "Python API"]}>
+      <Tab value="CLI Command">
+        ```bash
+        image-evaluator --metrics clip_i \
+            --reference path/to/reference_dir/ \
+            --image path/to/generated_dir/
+        ```
+      </Tab>
+      <Tab value="Python API">
+        ```python
+        from image_evaluator import evaluate_detailed
+
+        result = evaluate_detailed(
+            metrics=["clip_i"],
+            image="path/to/generated_dir/",
+            reference="path/to/reference_dir/",
+        )
+        print(f"Mean CLIP-I: {result['clip_i']:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>

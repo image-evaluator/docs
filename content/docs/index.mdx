@@ -5,23 +5,29 @@ description: Lightweight unified evaluation toolkit for generative image quality
 
 # Quickstart
 
-`image-evaluator` is a lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **nine core evaluation dimensions**: single-image aesthetic score, cross-modal text-image semantic alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), and human preference alignment.
+`image-evaluator` is a lightweight evaluation toolkit designed for generative AI researchers and practitioners. Under a unified interface, it systematically covers **fifteen core evaluation metrics**: single-image aesthetic score, cross-modal text-image semantic alignment, directional editing alignment, subject facial identity fidelity, pairwise fidelity triad (deep perceptual distance, structural similarity, and peak signal-to-noise ratio), dataset generative distribution distance (Fréchet Inception Distance and Kernel Inception Distance), subject-level CLIP-I fidelity, self-supervised DINOv2 layout fidelity, human preference scoring (PickScore and HPS v2.1), scalar human reward modeling (ImageReward), and compositional visual question answering posterior alignment (VQAScore).
 
 ---
 
 ## Metric Architecture Matrix
 
-The toolkit structures its nine core metrics across four functional dimensions based on evaluation input interface:
+The toolkit structures its fifteen core metrics across four functional dimensions based on evaluation input interface:
 
 | Category | Metric | Required Options | Output Scale | Direction | Documentation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **No-Reference Quality** | `aesthetic` | `--image` | `[1.0, 10.0]` | Higher is better | [Aesthetic Score](/no-reference/aesthetic) |
 | **Text-to-Image Alignment** | `clip` | `--image`, `--prompt` | `[0.0, 100.0]` | Higher is better | [CLIP Score](/text-image/clip) |
+| **Text-to-Image Alignment** | `directional_clip` | `--image`, `--reference`, `--prompt`, `--prompt-src` | `[-1.0, 1.0]` | Higher is better | [Directional CLIP](/text-image/directional-clip) |
 | **Text-to-Image Alignment** | `pickscore` | `--image`, `--prompt` | Logits $\approx [15, 25]$ | Higher is better | [PickScore](/text-image/pickscore) |
+| **Text-to-Image Alignment** | `hpsv2` | `--image`, `--prompt` | `[-1.0, 1.0]` | Higher is better | [HPS v2.1](/text-image/hpsv2) |
+| **Text-to-Image Alignment** | `image_reward` | `--image`, `--prompt` | Scalar $\approx [-2.5, 2.5]$ | Higher is better | [ImageReward](/text-image/image-reward) |
+| **Text-to-Image Alignment** | `vqascore` | `--image`, `--prompt` | `[0.0, 1.0]` | Higher is better | [VQAScore](/text-image/vqascore) |
 | **Pairwise Comparison** | `lpips` | `--image`, `--reference` | `[0.0, +inf)` | Lower is better | [LPIPS Distance](/pairwise/lpips) |
 | **Pairwise Comparison** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [SSIM Similarity](/pairwise/ssim) |
 | **Pairwise Comparison** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | Higher is better | [PSNR Ratio](/pairwise/psnr) |
 | **Pairwise Comparison** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | Lower is better | [ArcFace Distance](/pairwise/arcface) |
+| **Pairwise Comparison** | `clip_i` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [CLIP-I](/pairwise/clip-i) |
+| **Pairwise Comparison** | `dino_similarity` | `--image`, `--reference` | `[-1.0, 1.0]` | Higher is better | [DINOv2](/pairwise/dino-similarity) |
 | **Dataset Distribution** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | Lower is better | [FID Score](/distribution/fid) |
 | **Dataset Distribution** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | Lower is better | [KID Score](/distribution/kid) |
 

@@ -4,6 +4,8 @@
     "lpips",
     "ssim",
     "psnr",
-    "arcface"
+    "arcface",
+    "clip-i",
+    "dino-similarity"
   ]
 }

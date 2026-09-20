@@ -1,0 +1,117 @@
+---
+title: 多模态标量偏好奖励
+description: 基于多模态跨注意力机制与深度多层感知机回归的标准化标量奖励
+---
+
+# 多模态标量偏好奖励
+
+多模态标量偏好奖励利用深度交叉注意力模型直接衡量图像细节与文本描述的人类主观偏好程度。与传统的双塔余弦相似度体系不同，该模型允许文本特征与图像局部小块特征在深层网络中进行双向交叉注意力交互，从而敏锐捕捉物体属性绑定错误、肢体畸变以及构图缺陷，并经由全连接回归头输出连续实数奖励分值。
+
+---
+
+## 核心规格
+
+| 属性 | 规范定义 |
+| :--- | :--- |
+| **评测体系** | 人类偏好与标量奖励建模 |
+| **命令行参数** | `--metrics image_reward` |
+| **输入要求** | `--image <路径>`, `--prompt <文本提示词>` (两项皆必填) |
+| **禁止参数** | `--reference` (提示词生成评测禁止传入参考原图) |
+| **标度范围** | 标准化连续实数标量（典型区间位于 `[-2.5, 2.5]`，基准均值约为 0） |
+| **取值方向** | **数值越高越优** |
+| **模型主干** | 视觉编码器 + 跨注意力文本模型 + 多层感知机回归头 |
+| **可选依赖** | `pip install 'image-evaluator[preference]'` |
+| **权威源** | [Xu 等, 2023](https://arxiv.org/abs/2304.05977) |
+
+---
+
+## 理论公式推导
+
+模型提取图像分块特征并与文本表征进行深层交叉注意力融合，最终通过多层感知机计算并标准化分值：
+
+```math
+r = \text{MLP}\left( \text{CrossAttention}(\mathbf{z}_{\text{text}}, \mathbf{z}_{\text{image}}) \right)
+```
+
+```math
+S_{\text{ImageReward}}(I, T) = \frac{r - \mu}{\sigma}
+```
+
+其中常数 $\mu \approx 0.16717$ 与 $\sigma \approx 1.03334$ 来自官方基准测试集的经验统计矩。
+
+---
+
+## 概念界定与非等价性声明
+
+该指标输出连续的实数标量，不可表述为余弦相似度或概率：
+- **无界连续实数**：该指标分值存在正负。分值高于 0 表示超过基准集人类平均接受度，负分则说明图像存在较明显的缺陷或未达中位数水平。
+- **严禁概率化曲解**：评分为 0.5 不代表“50% 接受概率”，而是高出均值 0.5 个标准差的回归奖励。
+- **纯净工程重构**：核心库原生实现了其网络结构，解除了上游过时第三方重库的版本冲突锁定。
+
+---
+
+## 模型下载披露门禁
+
+该模型权重体积约 1.78 GB。本地首次运行时若未命中缓存，系统会强制拦截并要求显式传入 `--allow-download` 或设置 `allow_download=True` 进行下载授权。
+
+---
+
+## 调用示例
+
+<Steps>
+  <Step>
+    ### 单张生成图像标量奖励评估
+
+    评估生成图与提示词的多模态偏好奖励分值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics image_reward \
+            --image path/to/generated.png \
+            --prompt "河畔秋日小屋的油画"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator import evaluate
+
+        scores = evaluate(
+            metrics="image_reward",
+            image="path/to/generated.png",
+            prompt="河畔秋日小屋的油画",
+        )
+        print("奖励分值:", scores["image_reward"])
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### 文件夹批量评估
+
+    对目录下生成样本计算算术平均奖励分值：
+
+    <Tabs items={["命令行 CLI", "Python API 代码"]}>
+      <Tab value="命令行 CLI">
+        ```bash
+        image-evaluator --metrics image_reward \
+            --image path/to/generated_folder/ \
+            --prompt "霓虹细雨中的未来都市天际线"
+        ```
+      </Tab>
+      <Tab value="Python API 代码">
+        ```python
+        from image_evaluator import evaluate_detailed
+
+        result = evaluate_detailed(
+            metrics=["image_reward"],
+            image="path/to/generated_folder/",
+            prompt="霓虹细雨中的未来都市天际线",
+        )
+        print(f"平均奖励分: {result['image_reward']:.4f}")
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
