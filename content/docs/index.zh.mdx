@@ -26,7 +26,7 @@ description: 统一图像质量与多维对齐评估套件
 | **成对保真与主体** | `ssim` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [结构相似](/zh/pairwise/ssim) |
 | **成对保真与主体** | `psnr` | `--image`, `--reference` | dB $\in [0.0, +inf)$ | 数值越高越优 | [峰值信噪比](/zh/pairwise/psnr) |
 | **成对保真与主体** | `arcface` | `--image`, `--reference` | `[0.0, 2.0]` | 数值越低越优 | [主体人脸保真](/zh/pairwise/arcface) |
-| **成对保真与主体** | `clip_i` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [图像语义相似度](/zh/pairwise/clip-i) |
+| **成对保真与主体** | `clip_i` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [CLIP-I 主体语义相似度](/zh/pairwise/clip-i) |
 | **成对保真与主体** | `dino_similarity` | `--image`, `--reference` | `[-1.0, 1.0]` | 数值越高越优 | [自监督结构相似度](/zh/pairwise/dino-similarity) |
 | **群体生成分布差异** | `fid` | `--image <dir>`, `--reference <dir>` | `[0.0, +inf)` | 数值越低越优 | [弗雷歇距离](/zh/distribution/fid) |
 | **群体生成分布差异** | `kid` | `--image <dir>`, `--reference <dir>` | U-stat $\approx [-0.01, 0.10]$ | 数值越低越优 | [核最大均值差异](/zh/distribution/kid) |
