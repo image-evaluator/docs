@@ -1,9 +1,7 @@
 ---
-title: ArcFace (主体人脸一致性)
+title: 主体人脸一致性
 description: 基于 InsightFace buffalo_l 512 维特征余弦距离的人脸主体身份保持度评测
 ---
-
-# ArcFace (主体人脸一致性)
 
 ArcFace 人脸距离 (Deng et al., CVPR 2019) 用于度量生成人像与真实人物参考照之间的人脸生物特征一致性。通过 InsightFace (`buffalo_l`) 骨干网络提取主面部 512 维深度人脸嵌入特征，计算其余弦特征距离。该指标是评估 InstantID、PhotoMaker、LoRA 与 DreamBooth 等个性化人脸保持算法的核心度量工具。
 

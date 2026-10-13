@@ -8,6 +8,7 @@ import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { File, Files, Folder } from 'fumadocs-ui/components/files';
 import { ImageComparison } from '@/components/ImageComparison';
 import { MetricVisualShowcase } from '@/components/MetricVisualShowcase';
+import { Mermaid } from '@/components/Mermaid';
 import type { MDXComponents } from 'mdx/types';
 
 export function useMDXComponents(components?: MDXComponents): MDXComponents {
@@ -28,6 +29,7 @@ export function useMDXComponents(components?: MDXComponents): MDXComponents {
     Folder,
     ImageComparison,
     MetricVisualShowcase,
+    Mermaid,
     ...components,
   };
 }

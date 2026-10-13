@@ -12,6 +12,7 @@ export interface ImageComparisonProps {
   initialSliderPosition?: number;
   initialMode?: 'slider' | 'side-by-side';
   className?: string;
+  pixelated?: boolean;
 }
 
 function resolveAssetUrl(url: string): string {
@@ -34,11 +35,19 @@ export function ImageComparison({
   initialSliderPosition = 50,
   initialMode = 'slider',
   className = '',
+  pixelated,
 }: ImageComparisonProps) {
   const [mode, setMode] = useState<'slider' | 'side-by-side'>(initialMode);
   const [sliderPosition, setSliderPosition] = useState<number>(initialSliderPosition);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const isPixelated =
+    pixelated ??
+    (beforeImage.includes('case_01') ||
+      beforeImage.includes('case_02') ||
+      beforeImage.includes('64'));
+  const imgStyle = isPixelated ? { imageRendering: 'pixelated' as const } : undefined;
 
   const updatePosition = useCallback((clientX: number) => {
     if (!containerRef.current) return;
@@ -147,6 +156,7 @@ export function ImageComparison({
             src={resolveAssetUrl(beforeImage)}
             alt={`${alt} - ${beforeLabel}`}
             className="absolute inset-0 h-full w-full object-contain pointer-events-none"
+            style={imgStyle}
           />
 
           {/* 待测生成图（上层基于 clipPath 动态裁剪，暴露右半区） */}
@@ -154,7 +164,7 @@ export function ImageComparison({
             src={resolveAssetUrl(afterImage)}
             alt={`${alt} - ${afterLabel}`}
             className="absolute inset-0 h-full w-full object-contain pointer-events-none"
-            style={{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }}
+            style={{ ...imgStyle, clipPath: `inset(0 0 0 ${sliderPosition}%)` }}
           />
 
           {/* 参考原图徽章（左上） */}
@@ -207,6 +217,7 @@ export function ImageComparison({
                 src={resolveAssetUrl(beforeImage)}
                 alt={`${alt} - ${beforeLabel}`}
                 className="h-full w-full object-contain"
+                style={imgStyle}
               />
             </div>
           </div>
@@ -223,6 +234,7 @@ export function ImageComparison({
                 src={resolveAssetUrl(afterImage)}
                 alt={`${alt} - ${afterLabel}`}
                 className="h-full w-full object-contain"
+                style={imgStyle}
               />
             </div>
           </div>

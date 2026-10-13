@@ -3,8 +3,6 @@ title: 任务场景适用性与选择指南
 description: 覆盖文生图、图像编辑、风格迁移、肖像定制与超分辨率等场景的指标选择决策树与常见误用反面案例解析。
 ---
 
-# 任务场景适用性与选择指南
-
 在生成式图像评估中，选择契合任务数学机理的评测指标是获得科学、可复现结论的前提。不存在能够通吃所有生成任务的“通用指标”；脱离理论假设套用指标，必然会导致误导性的模型排序与虚假结论。
 
 ---
@@ -19,11 +17,10 @@ description: 覆盖文生图、图像编辑、风格迁移、肖像定制与超�
 
 ## 评测任务决策树
 
-```mermaid
-flowchart TD
+<Mermaid chart={`flowchart TD
     Start[生成视觉评测任务] --> TaskType{核心目标场景是什么？}
     
-    TaskType -->|文生图合成| T2I[T2I 文生图]
+    TaskType -->|文生图合成| T2I[文生图合成]
     TaskType -->|图像指令编辑| Edit[图像指令编辑]
     TaskType -->|风格迁移| Style[艺术风格迁移]
     TaskType -->|人脸肖像定制| Face[人脸与主体一致性]
@@ -35,17 +32,17 @@ flowchart TD
     T2I --> T2I_Aesth["4. 单图美学质量: aesthetic"]
 
     Edit --> Edit_Preserve["1. 背景与未编辑区保持: lpips / ssim"]
-    Edit --> Edit_Warn["2. 编辑指令遵循: 需使用 Directional CLIP (普通 clip 无效)"]
+    Edit --> Edit_Warn["2. 编辑指令遵循: 需使用定向编辑相似度"]
 
-    Style --> Style_Struct["1. 基础内容保持: lpips (相对基准对照)"]
+    Style --> Style_Struct["1. 基础内容保持: lpips 相对基准对照"]
     Style --> Style_Dist["2. 风格域分布: fid / kid"]
-    Style --> Style_Warn["注意: SSIM/PSNR 剧烈下降属于正常现象"]
+    Style --> Style_Warn["注意: SSIM 与 PSNR 下降属于正常现象"]
 
     Face --> Face_ID["1. 人脸身份一致性: arcface"]
     Face --> Face_Percept["2. 感知自然度: lpips / aesthetic"]
 
-    SR --> SR_Triad["经典保真三剑客: lpips (感知) + ssim (结构) + psnr (像素级 SNR)"]
-```
+    SR --> SR_Triad["经典保真三剑客: lpips 感知 + ssim 结构 + psnr 信噪比"]
+`} />
 
 ---
 

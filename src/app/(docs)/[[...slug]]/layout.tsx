@@ -22,12 +22,6 @@ export default async function RootDocsLayout(props: {
           title: 'image-evaluator',
           url: isZh ? '/zh' : '/',
         }}
-        links={[
-          {
-            text: isZh ? '实测演练' : 'Visual Benchmark',
-            url: isZh ? '/zh/benchmark/visual-demo' : '/benchmark/visual-demo',
-          },
-        ]}
       >
         {props.children}
       </DocsLayout>

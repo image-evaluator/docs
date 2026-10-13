@@ -1,9 +1,7 @@
 ---
-title: FID (弗雷歇距离)
+title: 弗雷歇距离
 description: 基于 Inception-v3 pool3 特征空间高斯二阶统计量的生成分布距离评测
 ---
-
-# FID (弗雷歇距离)
 
 弗雷歇 Inception 距离 (Heusel et al., NeurIPS 2017) 用于评估生成图片群体与真实图片数据集之间的整体统计分布差异。该指标将真实图集与生成图集分别输入 Inception-v3 网络提取 2048 维 `pool3` 深层特征，拟合多元高斯分布并计算 Wasserstein-2 统计距离，能够同时反映生成样本的保真度与多样性（防模式崩塌）。
 

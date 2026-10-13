@@ -171,9 +171,7 @@ Selecting the appropriate evaluation metric is critical for obtaining valid, rep
 
 ## Evaluation Scenario Decision Tree
 
-```mermaid
-flowchart TD
-    Start[Generative Vision Task] --> TaskType{What is the primary task?}
+ TaskType{What is the primary task?}
 
     TaskType -->|Text-to-Image| T2I[T2I Synthesis]
     TaskType -->|Image Editing| Edit[Image Editing]
@@ -187,18 +185,17 @@ flowchart TD
     T2I --> T2I_Aesth["4. Visual Aesthetics: aesthetic"]
 
     Edit --> Edit_Preserve["1. Background/Content Preservation: lpips / ssim"]
-    Edit --> Edit_Warn["2. Instruction Adherence: Requires Directional CLIP (Raw clip invalid)"]
+    Edit --> Edit_Warn["2. Instruction Adherence: Directional CLIP"]
 
-    Style --> Style_Struct["1. Content Preservation: lpips (Relative to baseline)"]
+    Style --> Style_Struct["1. Content Preservation: lpips"]
     Style --> Style_Dist["2. Style Distribution: fid / kid"]
     Style --> Style_Warn["Warning: SSIM/PSNR drop is expected"]
 
     Face --> Face_ID["1. Identity Consistency: arcface"]
     Face --> Face_Percept["2. Perceptual Quality: lpips / aesthetic"]
 
-    SR --> SR_Triad["Fidelity Triad: lpips (Perceptual) + ssim (Structure) + psnr (Pixel SNR)"]
-
-```
+    SR --> SR_Triad["Fidelity Triad: lpips + ssim + psnr"]
+`} />
 
 ---
 
@@ -585,8 +582,6 @@ Evaluate all images in a folder against a single benchmark prompt:
 # Directional CLIP
 
 > Relative semantic direction alignment for image editing using CLIP embedding differences
-
-# Directional CLIP (ΔCLIP)
 
 Directional CLIP (Gal et al., StyleGAN-NADA SIGGRAPH 2022; Brooks et al., InstructPix2Pix CVPR 2023) evaluates whether an edit moved an image in the semantic direction specified by the prompt change, overcoming the limitation of standard CLIP in image editing scenarios.
 
@@ -1871,11 +1866,11 @@ Compute unbiased KID between generated and reference folders:
     from image_evaluator.kid_predictor import KIDPredictor
 
     predictor = KIDPredictor()
-    mean_kid, std_kid = predictor.evaluate_kid(
+    result = predictor.evaluate_folder_kid(
         reference_folder="path/to/reference_dir/",
         generated_folder="path/to/generated_dir/"
     )
-    print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
+    print(f"KID Score: {result.kid:.6f}")
 
     ```
 

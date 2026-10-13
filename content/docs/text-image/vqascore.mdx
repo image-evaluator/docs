@@ -3,8 +3,6 @@ title: VQAScore (Visual Question Answering Alignment)
 description: Compositionality and text-image alignment evaluation via visual question answering posterior probability
 ---
 
-# VQAScore (Visual Question Answering Alignment)
-
 VQAScore by Lin et al. (ECCV 2024) evaluates generative text-to-image synthesis by casting alignment evaluation as visual question answering (VQA). Conventional dual-tower embeddings (such as CLIPScore) project whole scenes and prompts into isolated feature vectors, frequently suffering from "bag-of-words" degradation—ignoring grammatical negation, relative spatial relationships, counting, and multi-attribute binding.
 
 VQAScore overcomes this fundamental limitation by scoring generation through the posterior generation probability that a vision-language model answers **"Yes"** to whether the image depicts the prompt.

@@ -3,8 +3,6 @@ title: KID (Kernel Inception Distance)
 description: Unbiased polynomial kernel maximum mean discrepancy (MMD) in Inception feature space
 ---
 
-# KID (Kernel Inception Distance)
-
 Kernel Inception Distance (Bińkowski et al., ICLR 2018) is an unbiased metric for evaluating generative image distributions. Unlike FID, which fits a parametric Gaussian distribution and suffers from heavy small-sample bias, KID computes the squared Maximum Mean Discrepancy (MMD) with a cubic polynomial kernel via a U-statistic, providing reliable evaluation on subsets of 1,000 images or fewer.
 
 ---
@@ -79,11 +77,11 @@ KID operates over directories of images. Like FID, filenames do not need to matc
         from image_evaluator.kid_predictor import KIDPredictor
 
         predictor = KIDPredictor()
-        mean_kid, std_kid = predictor.evaluate_kid(
+        result = predictor.evaluate_folder_kid(
             reference_folder="path/to/reference_dir/",
             generated_folder="path/to/generated_dir/"
         )
-        print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
+        print(f"KID Score: {result.kid:.6f}")
         ```
       </Tab>
     </Tabs>

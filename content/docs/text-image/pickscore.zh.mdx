@@ -1,9 +1,7 @@
 ---
-title: PickScore (人类审美偏好对齐)
+title: 人类审美偏好对齐
 description: 基于 Pick-a-Pic 真实人类成对反馈数据集微调的 CLIP ViT-H-14 偏好奖励打分模型
 ---
-
-# PickScore (人类审美偏好对齐)
 
 PickScore (Kirstain et al., NeurIPS 2023) 专门用于评测文本生成图像在人类主观审美维度下的偏好程度。常规 CLIP 衡量的是客观图文特征几何距离，而 PickScore 在包含超 50 万条真实人类二选一打分数据的 Pick-a-Pic 数据集 (`yuvalkirstain/PickScore_v1`) 上进行了深度微调，能够直接预测人类评委更倾向选择哪张生成结果。
 

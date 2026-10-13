@@ -1,9 +1,7 @@
 ---
-title: KID (核最大均值差异)
+title: 核最大均值差异
 description: 基于 Inception 特征空间多项式核最大均值差异 (MMD) 的无偏生成分布距离
 ---
-
-# KID (核最大均值差异)
 
 核最大均值差异 (Bińkowski et al., ICLR 2018) 是一种面向生成式图像群体分布的无偏评测指标。相较于必须拟合多元高斯分布且严重依赖大样本量（易出现小样本虚高）的 FID，KID 基于三次多项式核并通过无偏 U 统计量计算分布的最大均值差异（MMD），在千张以内的小样本场景下依然保持客观稳定。
 
@@ -79,11 +77,11 @@ KID 支持两个独立文件夹输入，两边无须保持文件名配对与张�
         from image_evaluator.kid_predictor import KIDPredictor
 
         predictor = KIDPredictor()
-        mean_kid, std_kid = predictor.evaluate_kid(
+        result = predictor.evaluate_folder_kid(
             reference_folder="path/to/reference_dir/",
             generated_folder="path/to/generated_dir/"
         )
-        print(f"KID: {mean_kid:.6f} (+/- {std_kid:.6f})")
+        print(f"KID 分值: {result.kid:.6f}")
         ```
       </Tab>
     </Tabs>

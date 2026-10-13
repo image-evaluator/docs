@@ -1,9 +1,7 @@
 ---
-title: CLIP Score (图文语义对齐)
+title: 图文语义对齐
 description: 基于 CLIP ViT-B/32 多模态联合嵌入空间的文本与图像余弦相似度评测
 ---
-
-# CLIP Score (图文语义对齐)
 
 CLIP Score (Hessel et al., EMNLP 2021) 用于评估生成图像与输入文本提示词（Prompt）之间的跨模态语义吻合度。该指标通过 `clip-vit-base-patch32` 将文本词元与图像像素映射至对齐的多模态超球面，计算余弦相似度并缩放至 $[0, 100]$ 区间。
 

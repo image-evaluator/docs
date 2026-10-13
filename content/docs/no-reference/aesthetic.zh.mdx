@@ -1,9 +1,7 @@
 ---
-title: Aesthetic (单图美学评分)
+title: 单图美学评分
 description: 基于 OpenCLIP ViT-L-14 视觉特征与线性回归头的 LAION 视觉美学质量预测
 ---
-
-# Aesthetic (单图美学评分)
 
 LAION Aesthetic 美学评估器用于度量单张图像的构图美学与视觉吸引力，全程无需任何参考底图。该模型通过 OpenCLIP `ViT-L-14` 骨干网络提取图像的归一化特征向量，输入经过 SAC (Simulacra Aesthetic Captions) 与 LAION-Aesthetics 真实人类审美标注微调的轻量级线性回归头输出评分。
 

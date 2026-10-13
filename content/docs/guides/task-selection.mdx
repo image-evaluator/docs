@@ -3,8 +3,6 @@ title: Task Selection Guide
 description: Metric decision trees, scenario applicability boundaries, and common misuse anti-patterns across generative vision tasks.
 ---
 
-# Task Selection Guide
-
 Selecting the appropriate evaluation metric is critical for obtaining valid, reproducible scientific conclusions. No single metric universally captures all quality dimensions across generative tasks. Applying a metric outside its theoretical assumptions produces deceptive scores and flawed model rankings.
 
 ---
@@ -19,8 +17,7 @@ Selecting the appropriate evaluation metric is critical for obtaining valid, rep
 
 ## Evaluation Scenario Decision Tree
 
-```mermaid
-flowchart TD
+<Mermaid chart={`flowchart TD
     Start[Generative Vision Task] --> TaskType{What is the primary task?}
     
     TaskType -->|Text-to-Image| T2I[T2I Synthesis]
@@ -35,17 +32,17 @@ flowchart TD
     T2I --> T2I_Aesth["4. Visual Aesthetics: aesthetic"]
 
     Edit --> Edit_Preserve["1. Background/Content Preservation: lpips / ssim"]
-    Edit --> Edit_Warn["2. Instruction Adherence: Requires Directional CLIP (Raw clip invalid)"]
+    Edit --> Edit_Warn["2. Instruction Adherence: Directional CLIP"]
 
-    Style --> Style_Struct["1. Content Preservation: lpips (Relative to baseline)"]
+    Style --> Style_Struct["1. Content Preservation: lpips"]
     Style --> Style_Dist["2. Style Distribution: fid / kid"]
     Style --> Style_Warn["Warning: SSIM/PSNR drop is expected"]
 
     Face --> Face_ID["1. Identity Consistency: arcface"]
     Face --> Face_Percept["2. Perceptual Quality: lpips / aesthetic"]
 
-    SR --> SR_Triad["Fidelity Triad: lpips (Perceptual) + ssim (Structure) + psnr (Pixel SNR)"]
-```
+    SR --> SR_Triad["Fidelity Triad: lpips + ssim + psnr"]
+`} />
 
 ---
 

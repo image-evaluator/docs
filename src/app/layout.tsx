@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: '%s | image-evaluator',
     default: 'image-evaluator | Image Quality and Alignment Evaluation',
   },
-  description: 'Evaluation toolkit for AI image generation covering 9 metrics with Python and CLI interfaces.',
+  description: 'Enterprise-grade evaluation suite for AI image generation covering 15 metrics with Python SDK and CLI interfaces.',
 };
 
 export default function RootLayout({

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ImageComparison } from './ImageComparison';
 import { Terminal, Copy, Check, Info, Layers } from 'lucide-react';
 
@@ -28,14 +29,15 @@ interface CaseData {
   command: string;
 }
 
-const CASES_DATA: CaseData[] = [
+const CASES_DATA_ZH: CaseData[] = [
   {
     id: 'case_01',
     tabLabel: '用例一：严重感知失真',
     title: '用例一：局部结构位移与严重感知失真',
     subtitle: '画面边缘发生重度几何拓扑形变，多尺度指标全线一致告警',
     badge: '多指标一致判决退化',
-    badgeColor: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400',
+    badgeColor:
+      'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400',
     resolution: '64 × 64 像素',
     beforeImage: '/demo/cases/reference/case_01.png',
     afterImage: '/demo/cases/generated/case_01.png',
@@ -174,17 +176,189 @@ const CASES_DATA: CaseData[] = [
       },
     ],
     analysis:
-      '真实 MagicBrush 人像加眼镜编辑（1024x1024），除眼部微调外其余区域像素与身份完全保真。ArcFace 确认身份未发生漂移（0.4481），CLIP 验证眼镜添加成功（0.2353），成对保真度三指标（LPIPS 0.0901 / SSIM 0.9172 / PSNR 22.30 dB）全面证实背景与未修改区域完美保留。',
+      '真实人像加眼镜编辑（1024x1024），除眼部微调外其余区域像素与身份完全保真。ArcFace 确认身份未发生漂移（0.4481），CLIP 验证眼镜添加成功（0.2353），成对保真度三指标（LPIPS 0.0901 / SSIM 0.9172 / PSNR 22.30 dB）全面证实背景与未修改区域完美保留。',
     command:
       'image-evaluator --metrics aesthetic clip arcface lpips ssim psnr --reference reference/case_03.png --image generated/case_03.png --prompt "give the man glasses"',
   },
 ];
 
-export function MetricVisualShowcase() {
+const CASES_DATA_EN: CaseData[] = [
+  {
+    id: 'case_01',
+    tabLabel: 'Case 1: Severe Perceptual Distortion',
+    title: 'Case 1: Localized Structural Displacement & Perceptual Tear',
+    subtitle:
+      'Severe topological geometric deformation at image periphery with consistent multi-scale degradation',
+    badge: 'Multi-Metric Degradation Agreement',
+    badgeColor:
+      'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400',
+    resolution: '64 × 64 px',
+    beforeImage: '/demo/cases/reference/case_01.png',
+    afterImage: '/demo/cases/generated/case_01.png',
+    metrics: [
+      {
+        name: 'LPIPS (AlexNet)',
+        value: '0.7219',
+        tendency: 'Lower is better (0.0 = identical)',
+        verdict: 'Severe Distortion',
+        isFavorable: false,
+        description:
+          'Deep feature distance in AlexNet activation space is critically elevated, confirming severe perceptual tearing.',
+      },
+      {
+        name: 'SSIM',
+        value: '0.4368',
+        tendency: 'Higher is better (1.0 = identical)',
+        verdict: 'Structural Collapse',
+        isFavorable: false,
+        description:
+          'Sliding window local covariance statistics are critically low, breaking structural contour correlations.',
+      },
+      {
+        name: 'PSNR',
+        value: '18.05 dB',
+        tendency: 'Higher is better (+inf = identical)',
+        verdict: 'Low SNR',
+        isFavorable: false,
+        description:
+          'Pronounced mean squared error on pixel intensity indicates severe physical signal degradation.',
+      },
+    ],
+    analysis:
+      'The sample undergoes structural displacement and topological warping. Three pairwise metrics (deep perceptual LPIPS 0.7219, structural SSIM 0.4368, and pixel-level PSNR 18.05 dB) deliver unanimous negative verdicts, confirming irreversible multi-scale quality degradation.',
+    command:
+      'image-evaluator --metrics lpips ssim psnr --reference reference/case_01.png --image generated/case_01.png',
+  },
+  {
+    id: 'case_02',
+    tabLabel: 'Case 2: Global Color Tint Shift',
+    title: 'Case 2: Global Warm Color Tint & Metric Complementarity',
+    subtitle:
+      'Traditional pixel/structural metrics drop sharply while deep perceptual features correctly recognize semantic preservation',
+    badge: 'Complementarity Benchmark',
+    badgeColor:
+      'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400',
+    resolution: '64 × 64 px',
+    beforeImage: '/demo/cases/reference/case_02.png',
+    afterImage: '/demo/cases/generated/case_02.png',
+    metrics: [
+      {
+        name: 'LPIPS (AlexNet)',
+        value: '0.1376',
+        tendency: 'Lower is better (0.0 = identical)',
+        verdict: 'High Perceptual Fidelity',
+        isFavorable: true,
+        description:
+          'Deep features robustly extract geometric topology and semantic skeleton, filtering out the global tint shift.',
+      },
+      {
+        name: 'SSIM',
+        value: '0.2959',
+        tendency: 'Higher is better (1.0 = identical)',
+        verdict: 'Statistical False Alarm',
+        isFavorable: false,
+        description:
+          'Local mean and contrast statistics are perturbed by area-wide tint drift, producing false-positive drops.',
+      },
+      {
+        name: 'PSNR',
+        value: '13.87 dB',
+        tendency: 'Higher is better (+inf = identical)',
+        verdict: 'Pixel Energy Offset',
+        isFavorable: false,
+        description:
+          'Systematic shift in pixel intensity causes high mean squared error, recording a low 13.87 dB SNR.',
+      },
+    ],
+    analysis:
+      'Under global warm color shift, pixel-level PSNR and local structural SSIM suffer heavily, but deep feature LPIPS accurately identifies that geometric topology and semantics remain intact (0.1376). This demonstrates empirical complementarity across multi-scale pairwise metrics.',
+    command:
+      'image-evaluator --metrics lpips ssim psnr --reference reference/case_02.png --image generated/case_02.png',
+  },
+  {
+    id: 'case_03',
+    tabLabel: 'Case 3: High-Res Portrait Local Editing',
+    title: 'Case 3: High-Resolution Facial Local Modification Evaluation',
+    subtitle:
+      'Targeted glasses addition with identity preservation and multi-metric verification',
+    badge: 'Full Multi-Modal Evaluation',
+    badgeColor:
+      'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400',
+    resolution: '1024 × 1024 px',
+    beforeImage: '/demo/cases/reference/case_03.png',
+    afterImage: '/demo/cases/generated/case_03.png',
+    metrics: [
+      {
+        name: 'LPIPS',
+        value: '0.0901',
+        tendency: 'Lower is better',
+        verdict: 'High Fidelity',
+        isFavorable: true,
+        description:
+          'Global deep perceptual features match closely; minor distance stems solely from the newly added glasses.',
+      },
+      {
+        name: 'SSIM',
+        value: '0.9172',
+        tendency: 'Higher is better',
+        verdict: 'Excellent Structure',
+        isFavorable: true,
+        description:
+          'Facial contours, hair strands, and background structures remain intact outside the eye region.',
+      },
+      {
+        name: 'PSNR',
+        value: '22.30 dB',
+        tendency: 'Higher is better',
+        verdict: 'Solid Alignment',
+        isFavorable: true,
+        description:
+          'Unedited regions align strictly pixel by pixel, maintaining high reconstruction SNR.',
+      },
+      {
+        name: 'ArcFace',
+        value: '0.4481',
+        tendency: 'Cosine distance lower is better (< 0.68 same identity)',
+        verdict: 'Identity Preserved',
+        isFavorable: true,
+        description:
+          'Biometric face embedding comparison confirms identical identity without feature drift.',
+      },
+      {
+        name: 'CLIP Score',
+        value: '0.2353',
+        tendency: 'Higher alignment is better',
+        verdict: 'Instruction Followed',
+        isFavorable: true,
+        description:
+          'Accurately complies with the text prompt "give the man glasses" with verified semantic alignment.',
+      },
+      {
+        name: 'Aesthetic',
+        value: '6.7540',
+        tendency: 'Higher score is better (range 1.0 - 10.0)',
+        verdict: 'High-Quality Portrait',
+        isFavorable: true,
+        description:
+          'Pre-trained aesthetic predictor confirms realistic facial lighting without artifacts or noise.',
+      },
+    ],
+    analysis:
+      'Portrait editing with added glasses at 1024x1024. ArcFace verifies identity preservation (0.4481), CLIP confirms instruction compliance (0.2353), and pairwise metrics (LPIPS 0.0901 / SSIM 0.9172 / PSNR 22.30 dB) prove background preservation.',
+    command:
+      'image-evaluator --metrics aesthetic clip arcface lpips ssim psnr --reference reference/case_03.png --image generated/case_03.png --prompt "give the man glasses"',
+  },
+];
+
+export function MetricVisualShowcase({ locale }: { locale?: 'en' | 'zh' }) {
+  const pathname = usePathname();
+  const isZh = locale ? locale === 'zh' : pathname?.startsWith('/zh');
+  const casesData = isZh ? CASES_DATA_ZH : CASES_DATA_EN;
+
   const [activeTab, setActiveTab] = useState<string>('case_01');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const activeCase = CASES_DATA.find((c) => c.id === activeTab) || CASES_DATA[0];
+  const activeCase = casesData.find((c) => c.id === activeTab) || casesData[0];
 
   const handleCopy = (command: string, id: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -196,11 +370,31 @@ export function MetricVisualShowcase() {
     }
   };
 
+  const labels = isZh
+    ? {
+        matrixHeader: '实测指标结果矩阵',
+        analysisHeader: '实测分析与指标机理解析',
+        cliHeader: '命令行复现评测',
+        copy: '复制命令',
+        copied: '已复制',
+        beforeLabel: '参考原图 (Reference)',
+        afterLabel: '待测生成图 (Generated)',
+      }
+    : {
+        matrixHeader: 'Empirical Metric Results Matrix',
+        analysisHeader: 'Empirical Analysis & Metric Mechanism',
+        cliHeader: 'CLI Reproduction Command',
+        copy: 'Copy Command',
+        copied: 'Copied',
+        beforeLabel: 'Reference Truth',
+        afterLabel: 'Generated Output',
+      };
+
   return (
     <div className="my-8 rounded-2xl border border-neutral-200 bg-white/70 backdrop-blur-md p-4 sm:p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
       {/* 顶部用例选项卡导航 */}
       <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200 pb-4 dark:border-neutral-800">
-        {CASES_DATA.map((item) => {
+        {casesData.map((item) => {
           const isActive = item.id === activeCase.id;
           return (
             <button
@@ -243,16 +437,17 @@ export function MetricVisualShowcase() {
       <ImageComparison
         beforeImage={activeCase.beforeImage}
         afterImage={activeCase.afterImage}
-        beforeLabel="参考原图（Reference）"
-        afterLabel="待测生成图（Generated）"
+        beforeLabel={labels.beforeLabel}
+        afterLabel={labels.afterLabel}
         alt={activeCase.title}
+        pixelated={activeCase.id === 'case_01' || activeCase.id === 'case_02'}
       />
 
       {/* 指标卡片矩阵 */}
       <div className="mt-6 flex flex-col gap-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
           <Layers className="h-3.5 w-3.5" />
-          <span>实测指标结果矩阵</span>
+          <span>{labels.matrixHeader}</span>
         </div>
 
         <div
@@ -304,7 +499,7 @@ export function MetricVisualShowcase() {
           <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
           <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-blue-900 dark:text-blue-300">
-              实测分析与指标机理解析
+              {labels.analysisHeader}
             </span>
             <p className="text-xs sm:text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
               {activeCase.analysis}
@@ -318,7 +513,7 @@ export function MetricVisualShowcase() {
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800 text-xs text-neutral-400">
           <div className="flex items-center gap-1.5 font-mono">
             <Terminal className="h-3.5 w-3.5 text-neutral-400" />
-            <span>命令行复现评测</span>
+            <span>{labels.cliHeader}</span>
           </div>
           <button
             type="button"
@@ -328,12 +523,12 @@ export function MetricVisualShowcase() {
             {copiedId === activeCase.id ? (
               <>
                 <Check className="h-3 w-3 text-emerald-400" />
-                <span className="text-emerald-400">已复制</span>
+                <span className="text-emerald-400">{labels.copied}</span>
               </>
             ) : (
               <>
                 <Copy className="h-3 w-3" />
-                <span>复制命令</span>
+                <span>{labels.copy}</span>
               </>
             )}
           </button>
@@ -346,4 +541,3 @@ export function MetricVisualShowcase() {
     </div>
   );
 }
-
