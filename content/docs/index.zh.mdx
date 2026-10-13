@@ -56,6 +56,12 @@ description: 统一图像质量与多维对齐评估套件
     ```bash
     pip install image-evaluator
     ```
+
+    <Callout type="info">
+      - **平台支持基线**：原生支持苹果芯片系统（macOS Apple Silicon arm64）与通用企业级操作系统（Linux x86_64）。
+      - **提示词语言要求**：全部文本条件评估指标（`clip`、`directional_clip`、`pickscore`、`hpsv2`、`image_reward`、`vqascore`）均限定英文文本输入。
+      - **显存与资源治理**：0.7.0 版本起统一保障预测器生命周期管理，任务执行完毕后自动执行显存释放与垃圾回收。
+    </Callout>
   </Step>
 
   <Step>

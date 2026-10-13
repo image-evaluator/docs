@@ -56,6 +56,12 @@ The toolkit structures its fifteen core metrics across four functional dimension
     ```bash
     pip install image-evaluator
     ```
+
+    <Callout type="info">
+      - **Supported Platforms**: macOS (Apple Silicon arm64) and Linux (x86_64).
+      - **Language Requirements**: All text-conditioned evaluators (`clip`, `directional_clip`, `pickscore`, `hpsv2`, `image_reward`, `vqascore`) require English prompts.
+      - **Lifecycle & Memory Management**: Predictor allocations and GPU caches are deterministically cleared on task completion in `v0.7.0+`.
+    </Callout>
   </Step>
 
   <Step>

@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "bun run build:llms && next build",
     "build:llms": "bun scripts/generate-llms.ts",
+    "sync:upstream": "bun scripts/sync-upstream.ts",
     "start": "next start",
     "postinstall": "node -e \"import('fumadocs-mdx/next').then(m => m.postInstall())\""
   },

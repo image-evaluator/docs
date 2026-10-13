@@ -58,6 +58,7 @@ Evaluating image editing requires four explicit inputs:
 ## Interpretation & Guidance
 
 - **Relative Direction over Absolute Similarity**: Unlike standard CLIP, Directional CLIP isolates the *delta* of the transformation. A high score means the edit moved toward the target concept regardless of background style.
+- **Pinned Model Revision & Contract Guard**: Backed strictly by the immutable official commit of `openai/clip-vit-base-patch32`. Custom model overrides are rejected to guarantee reproducibility.
 - **Numerical Safeguards**: Built-in near-zero delta protection ($\epsilon=10^{-6}$) returns `0.0` when the image or text difference vector is degenerate, preventing NaN values.
 - **Multi-metric Synergy**: Always pair with pairwise fidelity metrics (LPIPS or SSIM) to verify that unedited regions and structural identity remain preserved while the target attributes change.
 

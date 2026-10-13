@@ -103,6 +103,24 @@ for img in images:
 
 ---
 
+## Directory Inputs & Sidecar Metadata Contract
+
+When processing flat image directories with `--image` or `--reference`:
+- **Allowed Formats**: Standard raster images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`).
+- **Metadata Sidecar Whitelist**: Only `.json`, `.yaml`, and `.yml` sidecar metadata files are permitted alongside images.
+- **Fail-Fast Enforcement**: Any unsupported visible files (unsupported documents, archives, or binaries) fail fast immediately.
+
+---
+
+## Predictor Lifecycle & Memory Safeguards
+
+In `v0.7.0+`, all evaluator invocations in `core.py` enforce strict memory management:
+- **Automatic Reference Release**: Predictors are dropped immediately upon evaluation completion.
+- **Deterministic CUDA Cleanup**: `torch.cuda.empty_cache()` and garbage collection run in guaranteed `finally` blocks.
+- **Exception Transparency**: Cleanup logic suppresses secondary errors to ensure original execution exceptions are never masked.
+
+---
+
 ## Modality Selection Decision Matrix
 
 - **Choose Form 1 (Single CLI)**: Only for ad-hoc terminal checks of single image files or debugging. **Never wrap in shell loops**.

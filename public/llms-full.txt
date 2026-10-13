@@ -50,6 +50,10 @@ pip install image-evaluator
 
 ```
 
+  - **Supported Platforms**: macOS (Apple Silicon arm64) and Linux (x86_64).
+  - **Language Requirements**: All text-conditioned evaluators (`clip`, `directional_clip`, `pickscore`, `hpsv2`, `image_reward`, `vqascore`) require English prompts.
+  - **Lifecycle & Memory Management**: Predictor allocations and GPU caches are deterministically cleared on task completion in `v0.7.0+`.
+
 ### Single-Image Aesthetic Evaluation
 
 Score standalone visual appeal using LAION aesthetic predictor:
@@ -355,6 +359,24 @@ for img in images:
 
 ---
 
+## Directory Inputs & Sidecar Metadata Contract
+
+When processing flat image directories with `--image` or `--reference`:
+- **Allowed Formats**: Standard raster images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`).
+- **Metadata Sidecar Whitelist**: Only `.json`, `.yaml`, and `.yml` sidecar metadata files are permitted alongside images.
+- **Fail-Fast Enforcement**: Any unsupported visible files (unsupported documents, archives, or binaries) fail fast immediately.
+
+---
+
+## Predictor Lifecycle & Memory Safeguards
+
+In `v0.7.0+`, all evaluator invocations in `core.py` enforce strict memory management:
+- **Automatic Reference Release**: Predictors are dropped immediately upon evaluation completion.
+- **Deterministic CUDA Cleanup**: `torch.cuda.empty_cache()` and garbage collection run in guaranteed `finally` blocks.
+- **Exception Transparency**: Cleanup logic suppresses secondary errors to ensure original execution exceptions are never masked.
+
+---
+
 ## Modality Selection Decision Matrix
 
 - **Choose Form 1 (Single CLI)**: Only for ad-hoc terminal checks of single image files or debugging. **Never wrap in shell loops**.
@@ -622,6 +644,7 @@ Evaluating image editing requires four explicit inputs:
 ## Interpretation & Guidance
 
 - **Relative Direction over Absolute Similarity**: Unlike standard CLIP, Directional CLIP isolates the *delta* of the transformation. A high score means the edit moved toward the target concept regardless of background style.
+- **Pinned Model Revision & Contract Guard**: Backed strictly by the immutable official commit of `openai/clip-vit-base-patch32`. Custom model overrides are rejected to guarantee reproducibility.
 - **Numerical Safeguards**: Built-in near-zero delta protection ($\epsilon=10^{-6}$) returns `0.0` when the image or text difference vector is degenerate, preventing NaN values.
 - **Multi-metric Synergy**: Always pair with pairwise fidelity metrics (LPIPS or SSIM) to verify that unedited regions and structural identity remain preserved while the target attributes change.
 
@@ -700,6 +723,7 @@ Outputs represent unnormalized calibrated logits, typically falling in $[15.0, 2
 - **Preference vs. Fidelity**: A technically distorted image may receive a low score even if it contains prompt keywords, because the model captures human aesthetic displeasure.
 
 - **Prompt Sensitivity**: PickScore requires clear descriptive text. Empty or whitespace-only prompts raise an explicit error.
+- **Pinned Weights & Download Gating**: Defaults to pinned revisions of `yuvalkirstain/PickScore_v1` and `laion/CLIP-ViT-H-14-laion2B-s32B-b79K`. Explicit download authorization (`--allow-download` or `allow_download=True`) is required when running without cached weights.
 
 ---
 
@@ -1883,3 +1907,230 @@ This interactive evaluation benchmark demonstrates how different metric layers r
 1. **LPIPS (Perceptual Deep Feature Layer)**: Highly robust against global uniform tint or minor sub-pixel shifts, but fires an alarm upon textural destruction or geometric contour tears.
 2. **SSIM (Structural Statistical Layer)**: Evaluates local covariance across an $11 \times 11$ window. Highly sensitive to contour blurs and edge artifacts.
 3. **PSNR (Physical Pixel Layer)**: Evaluates absolute mean squared error on pixel intensity. Highly sensitive to subtle global luminance shifts.
+
+---
+
+# Release Notes & Changelog
+
+> Complete release history and notable changes for image-evaluator
+
+All notable user-facing changes to `image-evaluator` are documented here.
+
+---
+
+## [0.7.0] - 2026-10-09
+
+### Changed
+
+- **Predictor Lifecycle Management**: Unified predictor memory release across all 15 metrics in `core.py`, ensuring deterministic garbage collection and GPU cache clearance in `finally` blocks on both success and error without masking underlying exceptions.
+- **Directional CLIP**: Pinned model weights to immutable official repository commit revision; enforce fail-fast rejection of unverified custom model overrides to prevent silent evaluation corruption.
+- **PickScore**: Pinned default model and processor to verified revisions; implemented comprehensive caching and offline download gating; enforced strict metadata contracts for custom remote checkpoints; fixed tuple output handling in CLIP pooling layer.
+- **Sidecar Metadata Contract**: Allowlisted only `.json`, `.yaml`, and `.yml` metadata sidecars in flat input directories; all other unsupported visible files continue to fail fast.
+- **Documentation & Disclosures**: Documented platform support baseline (macOS Apple Silicon / Linux x86_64) and disclosed English prompt constraints across text-conditioned evaluators; eliminated hardcoded version pinning in installation instructions.
+
+### Fixed
+
+- **Pillow 13 Compatibility**: Resolved upstream Pillow 13 deprecation warnings and API changes across image input adapters.
+- **CI & Contract Drift Prevention**: Added `contract-integrity.yml` workflow and registry synchronization scripts (`scripts/sync_readme_registry.py`, `scripts/verify_tag_version.py`) to prevent README, MetricRegistry, and Git tag version drift.
+
+## [0.6.1] - 2026-09-20
+
+### Fixed
+
+- Enforced strict `state_dict` key matching in ImageReward model loader, eliminating pooling layer discrepancy and asserting zero missing keys and strict whitelist for unmapped pretraining weights.
+- Added offline download gating and ModelAsset disclosure for ImageReward BERT tokenizer (`IMAGE_REWARD_TOKENIZER_ASSET`), preventing unauthorized network downloads.
+- Added dual ModelAsset tracking and download gating for VQAScore (`VQA_SCORE_TEXT_ASSET` and `VQA_SCORE_VISION_ASSET`), pinning `openai/clip-vit-large-patch14-336` revision to explicit commit SHA and accurately disclosing combined download footprint (~8.0 GB).
+- Standardized documentation filenames to `docs/clip-i.md` and `docs/clip.md`.
+
+## [0.6.0] - 2026-09-20
+
+### Added
+
+- Added five modern evaluation metrics, expanding the toolkit to 15 metrics:
+  - `clip_i`: CLIP image-to-image similarity using OpenCLIP ViT-L/14
+    QuickGELU for identity and subject preservation.
+  - `dino_similarity`: DINOv2-base CLS token cosine similarity for structure
+    and layout fidelity.
+  - `hpsv2`: Human Preference Score v2.1 using OpenCLIP ViT-H/14 for aesthetic
+    and text alignment preference.
+  - `image_reward`: ImageReward-v1.0 scalar reward modeling using BLIP text
+    encoder and ViT visual backbone with a 5-layer MLP.
+  - `vqascore`: VQAScore using CLIP-Flan-T5-XL 3B for compositionality and
+    complex question answering posterior probability.
+- Added optional dependency extras in `pyproject.toml`: `[vqa]` (accelerate,
+  sentencepiece), `[preference]` (timm), and `[modern]` (all modern extras).
+- Added `ModelAsset` download disclosure mechanism with fail-fast download
+  authorization (`--allow-download` via CLI, `allow_download=True` via Python
+  API) preventing unexpected multi-gigabyte downloads.
+- Added comprehensive documentation for all five modern metrics in `docs/`
+  (`clip-i-similarity.md`, `dino-similarity.md`, `hpsv2.md`, `image-reward.md`,
+  `vqascore.md`).
+- Added multi-metric combined regression and integration test coverage
+  (`tests/test_combined_modern_metrics.py`).
+
+### Changed
+
+- Updated toolkit version to 0.6.0 across package configuration, runtime
+  attributes, and test suite.
+- Re-architected model loading with explicit caching and lazy loading so
+  top-level imports and registry inspection remain instant (&lt;20ms) with zero
+  heavy framework imports.
+- Updated `README.md` with complete 15-metric catalog, task/objective taxonomy,
+  download disclosure guidance, and CLI/Python SDK examples.
+
+### Fixed
+
+- Eliminated duplicate weights and memory bloat by extracting shared backbones
+  across predictors.
+- Isolated stderr progress reporting from clean RFC 8259 JSON serialization in
+  CLI pipelines.
+- Standardized all predictors on zero Disk I/O streaming for file paths,
+  `PIL.Image`, `np.ndarray`, and `torch.Tensor`.
+
+## [0.5.0] - 2026-09-18
+
+### Added
+
+- Added an immutable Metric Registry that describes all ten metrics through
+  consistent input contracts, task and objective tags, score direction,
+  implementation provenance, dependencies, citations, and documentation paths.
+- Added `EvaluationResult` and `evaluate_detailed()` for structured results with
+  metric specifications, input provenance, execution duration, mapping access,
+  and RFC 8259 JSON serialization.
+- Added Directional CLIP support to the Python `evaluate()` API through the
+  four-input `image`, `reference`, `prompt`, and `source_prompt` contract.
+- Added lightweight CLI discovery through `list` and `show`, including task and
+  objective filters, text or JSON output, and compatibility aliases.
+
+### Changed
+
+- Made the Metric Registry the shared capability source for Python API
+  validation, CLI discovery, and the documented metric catalog.
+- Expanded README examples and executable documentation tests for registry
+  discovery and detailed evaluation results.
+- Preserved the existing `evaluate()` dictionary return value by default while
+  allowing callers to request detailed results explicitly.
+
+### Fixed
+
+- Removed capability drift that previously left Directional CLIP available from
+  the CLI and predictor API but unavailable from the top-level Python API.
+- Kept metric discovery isolated from Torch, Transformers, LPIPS, and CleanFID
+  imports so catalog inspection does not initialize evaluation backends.
+
+## [0.4.0] - 2026-09-15
+
+### Added
+
+- Directional CLIP (ΔCLIP) metric: Added `DirectionalClipPredictor` and CLI option
+  `--metrics directional_clip` with `--prompt-src` to evaluate relative semantic
+  direction alignment in image editing tasks (StyleGAN-NADA / InstructPix2Pix).
+- Numerical safeguards: Built-in degenerate delta vector protection ($\epsilon=10^{-6}$)
+  returning `0.0` when image or text changes are near zero, preventing NaN values.
+- Task selection and batch performance guides: Published interactive decision trees
+  and benchmarked invocation patterns across documentation site and README.
+- Executable documentation tests: Added `tests/test_docs_examples.py` ensuring all
+  published SDK and CLI snippets execute deterministically without code drift.
+
+### Changed
+
+- Comprehensive documentation truth alignment: Removed all uncalibrated absolute
+  thresholds across 18 docs-site manuals and core documentation, anchoring evaluation
+  guidance in empirical task-specific baselines and relative comparisons.
+- Version bump: Updated toolkit version to 0.4.0 across package configuration,
+  runtime attributes, and documentation links.
+
+### Fixed
+
+- CLI expected input error handling: Gracefully intercepted 8 classes of user input
+  errors (missing paths, corrupt images, dimension mismatches, missing required options)
+  before model initialization, eliminating Traceback leakage on expected failure paths.
+- Unix stream separation (Boss Decision 6A): Ensured stdout remains strictly 0 bytes
+  on error under `--format json`, redirecting single-line error messages to stderr
+  with non-zero exit codes.
+
+## [0.3.0] - 2026-09-13
+
+### Added
+
+- Added a top-level Python `evaluate(...)` API with lazy predictor imports.
+- Added in-memory PIL, PyTorch Tensor, and NumPy inputs for single-image and
+  pairwise metrics; FID and KID remain directory-based metrics.
+- Added CLI `--format json` output for automation and pipeline integration.
+- Added the AI-ready documentation site with interactive metric examples and
+  machine-readable documentation endpoints.
+
+### Changed
+
+- Propagated the public `device` argument consistently across predictors.
+- Preserved floating-point Tensor precision and defined deterministic grayscale
+  and RGBA channel conversion behavior.
+
+### Fixed
+
+- Enforced RFC 8259 JSON output by converting non-finite Python and NumPy values
+  to `null` and serializing with `allow_nan=False`.
+- Preserved Python and NumPy boolean values as JSON `true` and `false`.
+
+## [0.2.0] - 2026-09-11
+
+### Added
+
+- Dataset distribution metrics: Fréchet Inception Distance (FID) and Kernel Inception
+  Distance (KID) using clean-fid 0.1.35 under Inception-v3 clean mode with deterministic seed=0.
+- Human preference alignment metric: PickScore using official `yuvalkirstain/PickScore_v1`
+  weights with scaled logit scoring for text-to-image quality assessment.
+- Joint multi-metric evaluation across all 9 quality dimensions with lazy loading and
+  bit-exact score conservation.
+- Authoritative documentation manuals for FID (`docs/fid.md`), KID (`docs/kid.md`), and
+  PickScore (`docs/pickscore.md`).
+
+### Changed
+
+- Expanded `--metrics` CLI options to accept `fid`, `kid`, and `pickscore`.
+- Enforced Fail-Fast input validation: `--prompt` is required when `pickscore` is selected;
+  `--image` and `--reference` must be existing directories when `fid` or `kid` is selected.
+- Updated README.md with comprehensive 9-metric workflow diagram, selection guide, and
+  installation commands for the 0.2.0 release.
+
+### Fixed
+
+- Eliminated sample-order sensitivity and non-deterministic random state leakage in KID evaluation.
+- Resolved macOS spawn pickle issue by configuring worker process safety.
+
+### Known limitations
+
+- Windows has an external Python 3.12 smoke test covering CLIP, LPIPS, SSIM, and PSNR;
+  complete Windows support remains unverified.
+- The default CLIP and PickScore models are trained primarily on English text prompts;
+  multilingual prompt quality has not been independently benchmarked.
+
+## [0.1.0a1] - 2026-09-10
+
+### Added
+
+- Explicit `--metrics` selection with lazy loading for six metrics: Aesthetic,
+  CLIP similarity, ArcFace distance, LPIPS, SSIM, and PSNR.
+- Strict filename-stem pairing for directory evaluation.
+- Pairwise fidelity documentation and reproducible command examples.
+
+### Changed
+
+- Python support is now 3.11 through 3.14.
+- ONNX Runtime defaults to the CPU package on macOS and Linux; Linux users can
+  replace it with the GPU runtime.
+- Aesthetic scoring uses the OpenAI weight configuration with QuickGELU.
+
+### Fixed
+
+- Pairwise metrics reject mismatched dimensions instead of resizing silently.
+- SSIM rejects images smaller than its 11 × 11 window instead of returning
+  `NaN` with a successful exit code.
+
+### Known limitations
+
+- Windows has one external Python 3.12 smoke test covering CLIP, LPIPS, SSIM,
+  and PSNR; complete Windows support remains unverified.
+- The default CLIP model is intended for English prompts; multilingual prompt
+  quality has not been validated.
+- FID and KID are planned for M4 and are not part of this preview.

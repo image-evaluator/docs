@@ -21,6 +21,7 @@
 - [FID (Fréchet Inception Distance)](/distribution/fid): Generative distribution distance evaluated in Inception-v3 pool3 feature space
 - [KID (Kernel Inception Distance)](/distribution/kid): Unbiased polynomial kernel maximum mean discrepancy (MMD) in Inception feature space
 - [Visual Benchmark (Interactive Demo)](/benchmark/visual-demo): Interactive multi-metric dashboard and dual-image slider comparative inspection
+- [Release Notes & Changelog](/changelog): Complete release history and notable changes for image-evaluator
 
 ## 核心指标矩阵
 

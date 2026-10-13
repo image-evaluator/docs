@@ -42,6 +42,7 @@ Outputs represent unnormalized calibrated logits, typically falling in $[15.0, 2
 - **Preference vs. Fidelity**: A technically distorted image may receive a low score even if it contains prompt keywords, because the model captures human aesthetic displeasure.
 
 - **Prompt Sensitivity**: PickScore requires clear descriptive text. Empty or whitespace-only prompts raise an explicit error.
+- **Pinned Weights & Download Gating**: Defaults to pinned revisions of `yuvalkirstain/PickScore_v1` and `laion/CLIP-ViT-H-14-laion2B-s32B-b79K`. Explicit download authorization (`--allow-download` or `allow_download=True`) is required when running without cached weights.
 
 ---
 

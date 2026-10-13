@@ -1,0 +1,55 @@
+name: Scheduled Upstream Sync & Deploy
+
+on:
+  schedule:
+    # Run weekly on Monday at 02:00 UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+  repository_dispatch:
+    types:
+      - upstream-release
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  sync-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout docs repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Sync upstream changelog & docs
+        run: bun run sync:upstream
+
+      - name: Build static site & llms endpoints
+        env:
+          NEXT_PUBLIC_BASE_PATH: /docs
+          NEXT_PUBLIC_AI_WORKER_URL: ${{ secrets.AI_WORKER_URL }}
+        run: |
+          bun run build:llms
+          bun run build
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore(sync): automated sync with upstream image-evaluator"
+            git push origin main
+          else
+            echo "No upstream documentation changes detected."
+          fi
